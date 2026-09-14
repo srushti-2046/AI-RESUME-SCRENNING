@@ -13,6 +13,12 @@ frontend/backup_pristine/
 backend/saved_frontend_backend_files/
 backend/check_user_data.py
 
+# Internal Documentation, Spec PDFs & Trackers
+*.pdf
+Document_*
+tracker.md
+.agents/
+
 # Python
 __pycache__/
 *.py[cod]
