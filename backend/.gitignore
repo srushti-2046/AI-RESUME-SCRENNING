@@ -1,0 +1,7 @@
+# Environment Variables (CRITICAL - NEVER COMMIT TO GIT)
+.env
+.env.*
+*.env
+.pytest_cache/
+__pycache__/
+*.pyc
