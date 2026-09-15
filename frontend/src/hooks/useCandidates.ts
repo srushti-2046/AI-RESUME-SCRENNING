@@ -22,16 +22,26 @@ export function useCandidates() {
   const [search, setSearch] = useState(initialSearchParam);
   const [debouncedSearch, setDebouncedSearch] = useState(initialSearchParam);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(9); // 3x3 grid default
+  const [pageSize, setPageSize] = useState(50);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [loading, setLoading] = useState(true);
 
-  // Sync search state when URL ?search= parameter changes (e.g. from Navbar Search)
+  // Sync search and status state when URL query parameters change (e.g. from Dashboard KPI clicks)
   useEffect(() => {
     const urlSearch = searchParams.get('search') || searchParams.get('q') || '';
     if (urlSearch !== search) {
       setSearch(urlSearch);
       setDebouncedSearch(urlSearch);
+      setPage(1);
+    }
+
+    const urlStatus = (searchParams.get('status')?.toLowerCase() || 'all') as CandidateFilterTab;
+    const validTab: CandidateFilterTab =
+      urlStatus === 'shortlisted' || urlStatus === 'pending_review' || urlStatus === 'rejected'
+        ? urlStatus
+        : 'all';
+    if (validTab !== filter) {
+      setFilter(validTab);
       setPage(1);
     }
   }, [searchParams]);
@@ -40,7 +50,7 @@ export function useCandidates() {
     candidates: [],
     totalCount: 0,
     page: 1,
-    pageSize: 9,
+    pageSize: 50,
     totalPages: 1,
     counts: { all: 0, shortlisted: 0, pending_review: 0, rejected: 0 }
   });
