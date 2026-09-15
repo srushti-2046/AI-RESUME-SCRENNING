@@ -10,10 +10,10 @@ import type {
 export function useCandidates() {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Parse initial tab from URL query param (?status=shortlisted or ?status=rejected)
+  // Parse initial tab from URL query param (?status=shortlisted, ?status=pending_review or ?status=rejected)
   const initialStatusParam = (searchParams.get('status')?.toLowerCase() || 'all') as CandidateFilterTab;
   const validInitialTab: CandidateFilterTab =
-    initialStatusParam === 'shortlisted' || initialStatusParam === 'rejected'
+    initialStatusParam === 'shortlisted' || initialStatusParam === 'pending_review' || initialStatusParam === 'rejected'
       ? initialStatusParam
       : 'all';
 
@@ -42,7 +42,7 @@ export function useCandidates() {
     page: 1,
     pageSize: 9,
     totalPages: 1,
-    counts: { all: 0, shortlisted: 0, rejected: 0 }
+    counts: { all: 0, shortlisted: 0, pending_review: 0, rejected: 0 }
   });
 
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateListItem | null>(null);

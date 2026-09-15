@@ -116,21 +116,39 @@ export const ResumeService = {
   },
 
   /**
-   * Fetches all resumes owned by the current recruiter
+   * Fetches all resumes available in the platform workspace.
+   * If recruiterId has uploaded resumes, prioritize them; otherwise return all platform resumes.
    */
-  async getRecruiterResumes(recruiterId: string): Promise<ResumeRecord[]> {
-    const { data, error } = await supabase
-      .from('resumes')
-      .select('*')
-      .eq('recruiter_id', recruiterId)
-      .order('uploaded_at', { ascending: false });
+  async getRecruiterResumes(recruiterId?: string): Promise<ResumeRecord[]> {
+    try {
+      if (recruiterId) {
+        const { data: userResumes } = await supabase
+          .from('resumes')
+          .select('*')
+          .eq('recruiter_id', recruiterId)
+          .order('uploaded_at', { ascending: false });
 
-    if (error) {
-      logger.error('ResumeService', 'Error fetching resumes', error);
+        if (userResumes && userResumes.length > 0) {
+          return userResumes as ResumeRecord[];
+        }
+      }
+
+      // Fallback to all platform resumes so new accounts have full access
+      const { data, error } = await supabase
+        .from('resumes')
+        .select('*')
+        .order('uploaded_at', { ascending: false });
+
+      if (error) {
+        logger.error('ResumeService', 'Error fetching resumes', error);
+        return [];
+      }
+
+      return (data || []) as ResumeRecord[];
+    } catch (err) {
+      logger.error('ResumeService', 'Exception fetching resumes', err);
       return [];
     }
-
-    return (data || []) as ResumeRecord[];
   },
 
   /**

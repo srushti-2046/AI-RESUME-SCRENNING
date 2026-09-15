@@ -103,40 +103,135 @@ const NavItem = ({ to, icon: Icon, label, badge }: { to: string; icon: any; labe
 };
 
 // ===================== NOTIFICATION PANEL =====================
-const NotifPanel = ({ onClose, items = [] }: { onClose: () => void; items?: any[] }) => {
+const NotifPanel = ({
+  onClose,
+  items = [],
+  onClearAll,
+  onItemClick
+}: {
+  onClose: () => void;
+  items?: any[];
+  onClearAll?: () => void;
+  onItemClick?: (item: any) => void;
+}) => {
   const navigate = useNavigate();
   return (
-    <div className="notif-panel">
-      <div className="notif-header">
-        <span className="font-bold text-sm">Recent Alerts ({items.length})</span>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={15} /></button>
+    <div className="notif-panel" style={{ width: 340, boxShadow: '0 10px 30px rgba(0,0,0,0.25)', borderRadius: 12, overflow: 'hidden' }}>
+      <div className="notif-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', borderBottom: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span className="font-bold text-sm">Notifications</span>
+          {items.length > 0 && (
+            <span style={{ fontSize: '0.72rem', background: 'var(--accent)', color: '#fff', padding: '0.12rem 0.45rem', borderRadius: 10, fontWeight: 700 }}>
+              {items.length}
+            </span>
+          )}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {items.length > 0 && onClearAll && (
+            <button
+              onClick={onClearAll}
+              style={{
+                background: 'none',
+                border: 'none',
+                fontSize: '0.75rem',
+                color: 'var(--accent)',
+                fontWeight: 600,
+                cursor: 'pointer',
+                padding: '0.2rem 0.4rem',
+                borderRadius: 4
+              }}
+              title="Mark all notifications as read"
+            >
+              Clear All
+            </button>
+          )}
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }} title="Close">
+            <X size={15} />
+          </button>
+        </div>
       </div>
+
       {items.length === 0 ? (
-        <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
-          <Bell size={28} style={{ margin: '0 auto 0.5rem', opacity: 0.3, display: 'block' }} />
-          No notifications yet.
+        <div style={{ padding: '2.2rem 1.25rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+          <div style={{
+            width: 48,
+            height: 48,
+            borderRadius: '50%',
+            background: 'var(--card-hover-bg)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 0.75rem',
+            color: 'var(--text-muted)'
+          }}>
+            <Bell size={22} style={{ opacity: 0.5 }} />
+          </div>
+          <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+            No notifications yet
+          </div>
+          <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+            You're all caught up! ✨
+          </div>
         </div>
       ) : (
-        <div style={{ maxHeight: 260, overflowY: 'auto' }}>
-          {items.map((item, idx) => (
-            <div
-              key={idx}
-              onClick={() => { onClose(); navigate('/candidates'); }}
-              style={{
-                padding: '0.65rem 0.85rem',
-                borderBottom: '1px solid var(--border)',
-                cursor: 'pointer',
-                transition: 'background 0.15s ease'
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'var(--card-hover-bg)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-            >
-              <div style={{ fontWeight: 600, fontSize: '0.82rem', color: 'var(--text-primary)' }}>{item.file_name}</div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                {item.candidate_status || item.activity_type} &bull; {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+          {items.map((item, idx) => {
+            const isShortlisted = item.candidate_status === 'shortlisted' || item.activity_type?.includes('shortlist');
+            const isRejected = item.candidate_status === 'rejected' || item.activity_type?.includes('reject');
+            const isPending = item.candidate_status === 'pending_review' || item.candidate_status === 'screening';
+            const iconBg = isShortlisted ? 'rgba(0, 184, 148, 0.15)' : isRejected ? 'rgba(255, 118, 117, 0.15)' : isPending ? 'rgba(253, 203, 110, 0.2)' : 'rgba(108, 92, 231, 0.15)';
+            const iconColor = isShortlisted ? 'var(--green)' : isRejected ? 'var(--red)' : isPending ? '#b45309' : 'var(--accent)';
+            const iconSymbol = isShortlisted ? '⭐' : isRejected ? '❌' : isPending ? '⏳' : '📄';
+
+            return (
+              <div
+                key={item.id || idx}
+                onClick={() => {
+                  if (onItemClick) onItemClick(item);
+                  onClose();
+                  navigate('/candidates');
+                }}
+                style={{
+                  padding: '0.75rem 1rem',
+                  borderBottom: '1px solid var(--border)',
+                  cursor: 'pointer',
+                  transition: 'background 0.15s ease',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '0.75rem'
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--card-hover-bg)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                <div style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  background: iconBg,
+                  color: iconColor,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '0.85rem',
+                  flexShrink: 0,
+                  marginTop: 2
+                }}>
+                  {iconSymbol}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: '0.82rem', color: 'var(--text-primary)', wordBreak: 'break-word' }}>
+                    {item.candidate_name || item.file_name}
+                  </div>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', marginTop: 2, lineHeight: 1.3 }}>
+                    {item.activity_message || (item.candidate_status ? `Status: ${item.candidate_status.replace('_', ' ')}` : item.activity_type)}
+                  </div>
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                    {item.created_at ? new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recently'}
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -155,8 +250,37 @@ const AppShell = () => {
   const { isAuthenticated, user, signOut, refresh, data } = dashboard;
   const navigate = useNavigate();
 
-  const recentNotifications = data?.recentActivity || [];
-  const unreadCount = recentNotifications.length;
+  // Track cleared / read notifications in localStorage
+  const [clearedNotifIds, setClearedNotifIds] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('cleared_notif_ids') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
+  const allNotifications = data?.recentActivity || [];
+  const activeNotifications = allNotifications.filter(
+    (item: any) => !clearedNotifIds.includes(item.id || item.created_at)
+  );
+  const unreadCount = activeNotifications.length;
+
+  const handleClearAllNotifs = () => {
+    const allIds = allNotifications.map((item: any) => item.id || item.created_at).filter(Boolean);
+    const updated = Array.from(new Set([...clearedNotifIds, ...allIds]));
+    setClearedNotifIds(updated);
+    localStorage.setItem('cleared_notif_ids', JSON.stringify(updated));
+    addToast('All notifications marked as read', 'info');
+  };
+
+  const handleDismissNotif = (item: any) => {
+    const id = item.id || item.created_at;
+    if (id) {
+      const updated = [...clearedNotifIds, id];
+      setClearedNotifIds(updated);
+      localStorage.setItem('cleared_notif_ids', JSON.stringify(updated));
+    }
+  };
 
   // Theme mode state (persisted in localStorage)
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -221,11 +345,23 @@ const AppShell = () => {
               <FileText size={14} /> Resumes
             </Link>
             <div ref={notifRef} style={{ position: 'relative' }}>
-              <button className="navbar-link" onClick={() => setShowNotif(v => !v)}>
+              <button
+                className="navbar-link"
+                onClick={() => setShowNotif(v => !v)}
+                title="Notifications"
+                style={{ position: 'relative' }}
+              >
                 <Bell size={14} /> Notifications
                 {unreadCount > 0 && <span className="navbar-notif-badge">{unreadCount}</span>}
               </button>
-              {showNotif && <NotifPanel onClose={() => setShowNotif(false)} items={recentNotifications} />}
+              {showNotif && (
+                <NotifPanel
+                  onClose={() => setShowNotif(false)}
+                  items={activeNotifications}
+                  onClearAll={handleClearAllNotifs}
+                  onItemClick={handleDismissNotif}
+                />
+              )}
             </div>
             <Link to="/settings" className="navbar-link">
               <HelpCircle size={14} /> Help Centre
@@ -486,7 +622,7 @@ const Dashboard = () => {
     { icon: '🎯', label: 'Total Resumes', val: totalResumes, trend: 'Total uploaded', borderColor: '#0984e3', path: '/candidates' },
     { icon: '⭐', label: 'Shortlisted Candidates', val: shortlisted, trend: 'From AI screening', borderColor: '#fdcb6e', path: '/candidates?status=shortlisted' },
     { icon: '❌', label: 'Rejected Candidates', val: rejected, trend: 'From AI screening', borderColor: '#e17055', path: '/candidates?status=rejected' },
-    { icon: '⏳', label: 'Pending Review', val: pendingReview, trend: 'Awaiting action', borderColor: '#6c5ce7', path: '/candidates' },
+    { icon: '⏳', label: 'Pending Review', val: pendingReview, trend: 'Awaiting action', borderColor: '#6c5ce7', path: '/candidates?status=pending_review' },
   ];
 
   // Derive actual date range from real query data — no fake dates
@@ -769,13 +905,11 @@ const UploadResume = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStep, setAnalysisStep] = useState('');
 
-  // Fetch recruiter's existing resumes on mount
+  // Fetch platform resumes on mount so dashboard and workspace are never empty
   useEffect(() => {
-    if (isAuthenticated && user?.id) {
-      ResumeService.getRecruiterResumes(user.id).then(resumes => {
-        setRecruiterResumes(resumes);
-      });
-    }
+    ResumeService.getRecruiterResumes(user?.id).then(resumes => {
+      setRecruiterResumes(resumes);
+    });
   }, [isAuthenticated, user?.id]);
 
   const removeSkill = (s: string) => setSkills(prev => prev.filter(x => x !== s));

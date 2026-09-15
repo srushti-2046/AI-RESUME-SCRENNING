@@ -30,37 +30,35 @@ export const CandidateService = {
       page,
       pageSize,
       totalPages: 1,
-      counts: { all: 0, shortlisted: 0, rejected: 0 }
+      counts: { all: 0, shortlisted: 0, pending_review: 0, rejected: 0 }
     };
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        return defaultResponse;
-      }
-      const recruiterId = user.id;
-
-      // 1. Parallel Count Queries for real, persisted candidate counts
-      const [shortlistedCountRes, rejectedCountRes] = await Promise.all([
+      // 1. Parallel Count Queries across platform candidates
+      const [shortlistedCountRes, pendingCountRes, rejectedCountRes] = await Promise.all([
         supabase
           .from('candidates')
           .select('id', { count: 'exact', head: true })
-          .eq('recruiter_id', recruiterId)
           .eq('status', 'shortlisted'),
         supabase
           .from('candidates')
           .select('id', { count: 'exact', head: true })
-          .eq('recruiter_id', recruiterId)
+          .in('status', ['pending_review', 'screening']),
+        supabase
+          .from('candidates')
+          .select('id', { count: 'exact', head: true })
           .eq('status', 'rejected')
       ]);
 
       const shortlistedCount = shortlistedCountRes.count || 0;
+      const pendingCount = pendingCountRes.count || 0;
       const rejectedCount = rejectedCountRes.count || 0;
-      const allCount = shortlistedCount + rejectedCount;
+      const allCount = shortlistedCount + pendingCount + rejectedCount;
 
       const counts: CandidateCounts = {
         all: allCount,
         shortlisted: shortlistedCount,
+        pending_review: pendingCount,
         rejected: rejectedCount
       };
 
@@ -98,16 +96,15 @@ export const CandidateService = {
               education
             )
           )
-        `, { count: 'exact' })
-        .eq('recruiter_id', recruiterId);
+        `, { count: 'exact' });
 
-      // Status filtering — strictly shortlist / reject; 'all' shows only classified candidates
+      // Status filtering: shortlisted, pending_review, rejected, or all
       if (status === 'shortlisted') {
         query = query.eq('status', 'shortlisted');
       } else if (status === 'rejected') {
         query = query.eq('status', 'rejected');
-      } else {
-        query = query.in('status', ['shortlisted', 'rejected']);
+      } else if (status === 'pending_review') {
+        query = query.in('status', ['pending_review', 'screening']);
       }
 
       // Server-side text search (candidate name, email)
@@ -165,7 +162,9 @@ export const CandidateService = {
 
         const matchScore = Number(c.match_score) || 0;
         const resumeScore = Number(c.resume_score) || (resumeAnalysis?.resume_score ? Number(resumeAnalysis.resume_score) : 0);
-        const candidateStatus: CandidateStatus = c.status === 'shortlisted' ? 'shortlisted' : 'rejected';
+        const isShortlisted = c.status === 'shortlisted';
+        const isPending = c.status === 'pending_review' || c.status === 'screening';
+        const candidateStatus: CandidateStatus = isShortlisted ? 'shortlisted' : isPending ? 'pending_review' : 'rejected';
 
         return {
           id: c.id,

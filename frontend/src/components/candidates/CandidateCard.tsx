@@ -20,7 +20,10 @@ export const CandidateCard: React.FC<CandidateCardProps> = ({ candidate, onSumma
   };
 
   const isShortlisted = candidate.status === 'shortlisted';
+  const isPending = candidate.status === 'pending_review' || candidate.status === 'screening';
   const scoreColor = candidate.score >= 80 ? 'var(--green)' : candidate.score >= 60 ? '#0984e3' : 'var(--red)';
+  const statusBadgeClass = isShortlisted ? 'badge-green' : isPending ? 'badge-yellow' : 'badge-red';
+  const statusBadgeLabel = isShortlisted ? 'Shortlisted' : isPending ? 'Pending Review' : 'Rejected';
 
   return (
     <div className="candidate-card" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -40,8 +43,8 @@ export const CandidateCard: React.FC<CandidateCardProps> = ({ candidate, onSumma
         <div style={{ fontSize: '1.4rem', fontWeight: 900, color: scoreColor }}>
           {candidate.score}%
         </div>
-        <span className={`badge ${isShortlisted ? 'badge-green' : 'badge-red'}`}>
-          {isShortlisted ? 'Shortlisted' : 'Rejected'}
+        <span className={`badge ${statusBadgeClass}`}>
+          {statusBadgeLabel}
         </span>
       </div>
 

@@ -1,5 +1,5 @@
-export type CandidateStatus = 'shortlisted' | 'rejected';
-export type CandidateFilterTab = 'all' | 'shortlisted' | 'rejected';
+export type CandidateStatus = 'shortlisted' | 'rejected' | 'pending_review' | 'screening';
+export type CandidateFilterTab = 'all' | 'shortlisted' | 'pending_review' | 'rejected';
 
 export interface CandidateListItem {
   id: string; // candidate id
@@ -26,6 +26,7 @@ export interface CandidateListItem {
 export interface CandidateCounts {
   all: number;
   shortlisted: number;
+  pending_review: number;
   rejected: number;
 }
 

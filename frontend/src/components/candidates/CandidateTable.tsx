@@ -36,7 +36,10 @@ export const CandidateTable: React.FC<CandidateTableProps> = ({ candidates, onSu
           <tbody>
             {candidates.map((c) => {
               const isShortlisted = c.status === 'shortlisted';
+              const isPending = c.status === 'pending_review' || c.status === 'screening';
               const scoreColor = c.score >= 80 ? 'var(--green)' : c.score >= 60 ? '#0984e3' : 'var(--red)';
+              const statusBadgeClass = isShortlisted ? 'badge-green' : isPending ? 'badge-yellow' : 'badge-red';
+              const statusBadgeLabel = isShortlisted ? 'Shortlisted' : isPending ? 'Pending Review' : 'Rejected';
 
               return (
                 <tr key={c.id}>
@@ -62,8 +65,8 @@ export const CandidateTable: React.FC<CandidateTableProps> = ({ candidates, onSu
                     </span>
                   </td>
                   <td>
-                    <span className={`badge ${isShortlisted ? 'badge-green' : 'badge-red'}`}>
-                      {isShortlisted ? 'Shortlisted' : 'Rejected'}
+                    <span className={`badge ${statusBadgeClass}`}>
+                      {statusBadgeLabel}
                     </span>
                   </td>
                   <td style={{ textAlign: 'center', paddingRight: '1.25rem' }}>

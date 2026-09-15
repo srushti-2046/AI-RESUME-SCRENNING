@@ -37,7 +37,7 @@ export const CandidatesPage: React.FC = () => {
         <div>
           <h1 className="page-title">Candidates</h1>
           <p className="page-subtitle">
-            Manage and review all {counts.all} classified candidates
+            Manage and review all {counts.all} candidates across the platform
           </p>
         </div>
 
