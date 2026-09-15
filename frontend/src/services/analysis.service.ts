@@ -200,7 +200,7 @@ export const AnalysisService = {
           resumeQuality = cached.resumeQuality;
           jobMatch = cached.jobMatch;
         } else {
-          parsedResume = parseResumeDeterministic(resumeText, resume.file_name);
+          parsedResume = parseResumeDeterministic(resumeText, resume.file_name, parsedJob.required_skills);
           const scored = calculateResumeScore(parsedResume);
           resumeScore = scored.score;
           resumeQuality = scored.quality;

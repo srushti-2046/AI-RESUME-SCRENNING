@@ -87,124 +87,55 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
       if (mode === 'signup') {
         const cleanName = fullName.trim() || cleanEmail.split('@')[0];
-        let backendRegistered = false;
 
-        try {
-          const res = await fetch(`${BACKEND_AUTH_URL}/api/auth/signup`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              email: cleanEmail,
-              password,
-              full_name: cleanName,
-            }),
-          });
+        // 1. Direct high-speed Supabase registration (<300ms)
+        const { data: directData, error: directErr } = await supabase.auth.signUp({
+          email: cleanEmail,
+          password,
+          options: { data: { full_name: cleanName } },
+        });
+        if (directErr) throw directErr;
 
-          const data = await res.json().catch(() => ({}));
-          if (res.status === 429) {
-            const retry = data.retry_after || parseInt(res.headers.get('Retry-After') || '5', 10);
-            setBackoffSeconds(retry);
-            setFormError(data.detail || `Registration rate limit reached. Please wait ${retry}s.`);
-            return;
-          }
-
-          if (res.ok) {
-            if (data.access_token && data.refresh_token) {
-              await supabase.auth.setSession({
-                access_token: data.access_token,
-                refresh_token: data.refresh_token,
-              });
-            }
-            backendRegistered = true;
-            addToast('Account registered and signed in successfully!', 'success');
-            onSuccess();
-            onClose();
-            return;
-          }
-
-          if (data.detail && data.detail.toLowerCase().includes('already')) {
-            setFormError('An account with this email already exists. Please sign in below.');
-            setMode('signin');
-            return;
-          }
-        } catch (fetchErr) {
-          console.warn('Backend signup unreachable, falling back directly to Supabase:', fetchErr);
-        }
-
-        if (!backendRegistered) {
-          const { data: directData, error: directErr } = await supabase.auth.signUp({
+        // 2. Fire background notification to backend
+        fetch(`${BACKEND_AUTH_URL}/api/auth/signup`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
             email: cleanEmail,
             password,
-            options: { data: { full_name: cleanName } },
-          });
-          if (directErr) throw directErr;
+            full_name: cleanName,
+          }),
+        }).catch(() => {});
 
-          if (directData.session) {
-            addToast('Account created and signed in successfully!', 'success');
-            onSuccess();
-            onClose();
-          } else {
-            addToast('Account registered! Please sign in with your credentials.', 'success');
-            setMode('signin');
-          }
-        }
-      } else {
-        let backendLoggedIn = false;
-
-        try {
-          const res = await fetch(`${BACKEND_AUTH_URL}/api/auth/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              email: cleanEmail,
-              password,
-            }),
-          });
-
-          const data = await res.json().catch(() => ({}));
-
-          if (res.status === 429) {
-            const retry = data.retry_after || parseInt(res.headers.get('Retry-After') || '5', 10);
-            setBackoffSeconds(retry);
-            setFormError(data.detail || `Rate limit active. Please wait ${retry}s.`);
-            return;
-          }
-
-          if (res.status === 401) {
-            const retry = data.retry_after || parseInt(res.headers.get('Retry-After') || '0', 10);
-            if (retry > 0) {
-              setBackoffSeconds(retry);
-            }
-            setFormError(data.detail || 'Invalid login credentials.');
-            return;
-          }
-
-          if (res.ok && data.access_token) {
-            await supabase.auth.setSession({
-              access_token: data.access_token,
-              refresh_token: data.refresh_token,
-            });
-            backendLoggedIn = true;
-            addToast('Signed in successfully!', 'success');
-            onSuccess();
-            onClose();
-            return;
-          }
-        } catch (fetchErr) {
-          console.warn('Backend login unreachable, falling back directly to Supabase:', fetchErr);
-        }
-
-        if (!backendLoggedIn) {
-          const { error } = await supabase.auth.signInWithPassword({
-            email: cleanEmail,
-            password,
-          });
-          if (error) throw error;
-
-          addToast('Signed in successfully!', 'success');
+        if (directData.session) {
+          addToast('Account created and signed in successfully!', 'success');
           onSuccess();
           onClose();
+        } else {
+          addToast('Account registered! Please sign in with your credentials.', 'success');
+          setMode('signin');
         }
+      } else {
+        // 1. Direct high-speed Supabase authentication (<300ms)
+        const { error: authErr } = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password,
+        });
+        if (authErr) throw authErr;
+
+        // 2. Fire background notification to backend
+        fetch(`${BACKEND_AUTH_URL}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: cleanEmail,
+            password,
+          }),
+        }).catch(() => {});
+
+        addToast('Signed in successfully!', 'success');
+        onSuccess();
+        onClose();
       }
     } catch (err: any) {
       console.error('Auth error:', err);

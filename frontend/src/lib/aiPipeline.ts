@@ -1,61 +1,196 @@
 import type { ParsedResumeData, ParsedJobData, CandidateRanking } from '../types/resume.types';
 
 // ============================================================================
-// 1. SKILL NORMALIZATION & CANONICAL MAPPING
+// 1. SKILL NORMALIZATION & CANONICAL MAPPING (CROSS-INDUSTRY)
 // ============================================================================
 const SKILL_ALIASES: Record<string, string> = {
+  // Tech & AI
   'ml': 'Machine Learning',
   'machine learning': 'Machine Learning',
-  'machine-learning': 'Machine Learning',
   'ai': 'Artificial Intelligence',
   'artificial intelligence': 'Artificial Intelligence',
   'dl': 'Deep Learning',
   'deep learning': 'Deep Learning',
   'nlp': 'Natural Language Processing',
-  'natural language processing': 'Natural Language Processing',
   'python': 'Python',
   'python3': 'Python',
-  'python 3': 'Python',
-  'py': 'Python',
   'js': 'JavaScript',
   'javascript': 'JavaScript',
   'ts': 'TypeScript',
   'typescript': 'TypeScript',
   'react': 'React',
   'reactjs': 'React',
-  'react.js': 'React',
   'node': 'Node.js',
   'nodejs': 'Node.js',
-  'node.js': 'Node.js',
   'sql': 'SQL',
   'mysql': 'MySQL',
   'postgres': 'PostgreSQL',
   'postgresql': 'PostgreSQL',
-  'mongo': 'MongoDB',
   'mongodb': 'MongoDB',
   'aws': 'AWS',
-  'amazon web services': 'AWS',
   'gcp': 'GCP',
-  'google cloud': 'GCP',
   'azure': 'Azure',
   'docker': 'Docker',
   'k8s': 'Kubernetes',
   'kubernetes': 'Kubernetes',
-  'data analysis': 'Data Analysis',
-  'data analytics': 'Data Analysis',
-  'communication': 'Communication',
-  'problem solving': 'Problem Solving',
   'git': 'Git',
-  'github': 'Git',
   'ci/cd': 'CI/CD',
   'rest api': 'REST API',
-  'restful api': 'REST API',
-  'graphql': 'GraphQL',
   'pandas': 'Pandas',
   'numpy': 'NumPy',
   'scikit-learn': 'Scikit-Learn',
   'tensorflow': 'TensorFlow',
   'pytorch': 'PyTorch',
+
+  // Marketing & Growth
+  'seo': 'SEO',
+  'search engine optimization': 'SEO',
+  'sem': 'SEM',
+  'search engine marketing': 'SEM',
+  'ppc': 'PPC Advertising',
+  'google ads': 'Google Ads',
+  'meta ads': 'Meta Ads',
+  'facebook ads': 'Meta Ads',
+  'content marketing': 'Content Marketing',
+  'content writing': 'Content Writing',
+  'copywriting': 'Copywriting',
+  'social media': 'Social Media Marketing',
+  'social media marketing': 'Social Media Marketing',
+  'smm': 'Social Media Marketing',
+  'email marketing': 'Email Marketing',
+  'growth marketing': 'Growth Marketing',
+  'google analytics': 'Google Analytics',
+  'ga4': 'Google Analytics',
+  'market research': 'Market Research',
+  'brand strategy': 'Brand Strategy',
+  'lead generation': 'Lead Generation',
+  'crm': 'CRM',
+  'hubspot': 'HubSpot',
+
+  // Sales & Business Development
+  'sales': 'Sales',
+  'b2b sales': 'B2B Sales',
+  'b2c sales': 'B2C Sales',
+  'cold calling': 'Cold Calling',
+  'salesforce': 'Salesforce',
+  'negotiation': 'Negotiation',
+  'account management': 'Account Management',
+  'business development': 'Business Development',
+  'pipeline management': 'Pipeline Management',
+  'client relationship': 'Client Relationship Management',
+  'customer success': 'Customer Success',
+  'customer support': 'Customer Support',
+
+  // Finance, Accounting & Banking
+  'accounting': 'Accounting',
+  'accountancy': 'Accounting',
+  'bookkeeping': 'Bookkeeping',
+  'taxation': 'Taxation',
+  'income tax': 'Income Tax',
+  'gst': 'GST',
+  'tds': 'TDS',
+  'tally': 'Tally',
+  'tally prime': 'Tally',
+  'quickbooks': 'QuickBooks',
+  'sap': 'SAP',
+  'financial modeling': 'Financial Modeling',
+  'financial analysis': 'Financial Analysis',
+  'auditing': 'Auditing',
+  'internal audit': 'Auditing',
+  'statutory audit': 'Auditing',
+  'balance sheet': 'Balance Sheet Preparation',
+  'p&l': 'P&L Statement',
+  'profit and loss': 'P&L Statement',
+  'general ledger': 'General Ledger',
+  'accounts payable': 'Accounts Payable',
+  'accounts receivable': 'Accounts Receivable',
+  'payroll': 'Payroll Management',
+  'budgeting': 'Budgeting & Forecasting',
+  'forecasting': 'Budgeting & Forecasting',
+  'excel': 'Microsoft Excel',
+  'advanced excel': 'Advanced Excel',
+  'vlookup': 'Advanced Excel',
+  'pivot table': 'Advanced Excel',
+  'valuation': 'Financial Valuation',
+  'investment banking': 'Investment Banking',
+  'wealth management': 'Wealth Management',
+
+  // Human Resources & Recruitment
+  'hr': 'Human Resources',
+  'human resources': 'Human Resources',
+  'talent acquisition': 'Talent Acquisition',
+  'recruitment': 'Recruitment',
+  'sourcing': 'Candidate Sourcing',
+  'candidate screening': 'Resume Screening',
+  'interviewing': 'Interviewing',
+  'onboarding': 'Employee Onboarding',
+  'employee relations': 'Employee Relations',
+  'hr policies': 'HR Policies',
+  'hris': 'HRIS',
+  'workday': 'Workday',
+  'performance management': 'Performance Management',
+  'labor laws': 'Labor Laws & Compliance',
+  'employee engagement': 'Employee Engagement',
+
+  // Healthcare & Medicine
+  'patient care': 'Patient Care',
+  'nursing': 'Nursing',
+  'clinical': 'Clinical Skills',
+  'clinical research': 'Clinical Research',
+  'triage': 'Triage',
+  'phlebotomy': 'Phlebotomy',
+  'cpr': 'CPR Certified',
+  'first aid': 'First Aid',
+  'medical billing': 'Medical Billing',
+  'medical coding': 'Medical Coding',
+  'ehr': 'EHR / EMR Systems',
+  'emr': 'EHR / EMR Systems',
+  'hipaa': 'HIPAA Compliance',
+  'pharmacology': 'Pharmacology',
+
+  // Design, Media & Creative
+  'ui/ux': 'UI/UX Design',
+  'ui': 'UI Design',
+  'ux': 'UX Research',
+  'figma': 'Figma',
+  'adobe xd': 'Adobe XD',
+  'photoshop': 'Adobe Photoshop',
+  'illustrator': 'Adobe Illustrator',
+  'indesign': 'Adobe InDesign',
+  'graphic design': 'Graphic Design',
+  'wireframing': 'Wireframing & Prototyping',
+  'prototyping': 'Wireframing & Prototyping',
+  'canva': 'Canva',
+  'video editing': 'Video Editing',
+  'premiere pro': 'Adobe Premiere Pro',
+  'after effects': 'After Effects',
+  'animation': 'Motion Graphics',
+
+  // Operations, Supply Chain & Management
+  'operations': 'Operations Management',
+  'supply chain': 'Supply Chain Management',
+  'logistics': 'Logistics',
+  'inventory': 'Inventory Management',
+  'procurement': 'Procurement',
+  'vendor management': 'Vendor Management',
+  'quality assurance': 'Quality Assurance',
+  'qa': 'Quality Assurance',
+  'six sigma': 'Six Sigma',
+  'lean': 'Lean Manufacturing',
+  'erp': 'ERP Systems',
+
+  // Project Management & Soft Skills
+  'project management': 'Project Management',
+  'agile': 'Agile Methodology',
+  'scrum': 'Scrum',
+  'jira': 'Jira',
+  'trello': 'Trello',
+  'asana': 'Asana',
+  'communication': 'Communication',
+  'leadership': 'Leadership',
+  'problem solving': 'Problem Solving',
+  'team management': 'Team Management',
+  'critical thinking': 'Critical Thinking',
 };
 
 export function normalizeSkill(skill: string): string {
@@ -64,28 +199,64 @@ export function normalizeSkill(skill: string): string {
 }
 
 export function areSkillsMatching(skillA: string, skillB: string): boolean {
-  return normalizeSkill(skillA).toLowerCase() === normalizeSkill(skillB).toLowerCase();
+  const a = normalizeSkill(skillA).toLowerCase().replace(/[^a-z0-9]/g, '');
+  const b = normalizeSkill(skillB).toLowerCase().replace(/[^a-z0-9]/g, '');
+  return a === b || a.includes(b) || b.includes(a);
 }
 
 // ============================================================================
 // 2. DETERMINISTIC RESUME PARSING (NLP & REGEX ENGINE)
 // ============================================================================
-export function extractSkillsFromText(text: string): string[] {
+export function extractSkillsFromText(text: string, dynamicRequiredSkills?: string[]): string[] {
   const foundSkills = new Set<string>();
   const lowerText = ' ' + text.toLowerCase().replace(/[^a-z0-9#+./ -]/g, ' ') + ' ';
 
-  const knownSkillList = [
+  // 1. Dynamic skills specified by recruiter for the specific job
+  if (dynamicRequiredSkills && dynamicRequiredSkills.length > 0) {
+    for (const rawReq of dynamicRequiredSkills) {
+      const cleanReq = rawReq.trim().toLowerCase();
+      if (!cleanReq || cleanReq.length < 2) continue;
+      const escaped = cleanReq.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`(?:\\b|[^a-zA-Z0-9])${escaped}(?:\\b|[^a-zA-Z0-9])`, 'i');
+      if (regex.test(lowerText) || lowerText.includes(cleanReq)) {
+        foundSkills.add(normalizeSkill(rawReq));
+      }
+    }
+  }
+
+  // 2. Universal cross-industry curated skills
+  const universalSkills = [
+    // Tech
     'Python', 'Machine Learning', 'Deep Learning', 'NLP', 'SQL', 'PostgreSQL', 'MySQL', 'MongoDB',
     'Data Analysis', 'Pandas', 'NumPy', 'Scikit-Learn', 'TensorFlow', 'PyTorch',
     'AWS', 'Docker', 'Kubernetes', 'GCP', 'Azure', 'Git', 'CI/CD',
     'JavaScript', 'TypeScript', 'React', 'Node.js', 'Express', 'HTML', 'CSS', 'Tailwind',
-    'Communication', 'Problem Solving', 'Leadership', 'Agile', 'Scrum'
+    // Marketing & Sales
+    'SEO', 'SEM', 'Google Ads', 'Meta Ads', 'Content Marketing', 'Copywriting', 'Social Media',
+    'Email Marketing', 'Google Analytics', 'Brand Strategy', 'Lead Generation', 'Salesforce', 'HubSpot',
+    'B2B Sales', 'Cold Calling', 'Negotiation', 'Account Management', 'Business Development',
+    // Finance & Accounting
+    'Accounting', 'Bookkeeping', 'Taxation', 'GST', 'TDS', 'Tally', 'QuickBooks', 'SAP',
+    'Financial Modeling', 'Financial Analysis', 'Auditing', 'Balance Sheet', 'Payroll',
+    'Budgeting', 'Advanced Excel', 'VLOOKUP', 'Investment Banking',
+    // HR & Management
+    'Human Resources', 'Talent Acquisition', 'Recruitment', 'Candidate Sourcing', 'Interviewing',
+    'Onboarding', 'Employee Relations', 'HR Policies', 'Workday', 'Performance Management',
+    // Creative & Design
+    'UI/UX Design', 'Figma', 'Adobe XD', 'Adobe Photoshop', 'Adobe Illustrator', 'Graphic Design',
+    'Canva', 'Video Editing', 'Adobe Premiere Pro',
+    // Healthcare & Operations
+    'Patient Care', 'Nursing', 'Clinical Research', 'CPR', 'Medical Billing', 'EHR', 'HIPAA',
+    'Supply Chain Management', 'Logistics', 'Procurement', 'Quality Assurance', 'Six Sigma',
+    // Soft Skills
+    'Project Management', 'Agile', 'Scrum', 'Jira', 'Communication', 'Leadership', 'Problem Solving',
+    'Team Management', 'Critical Thinking'
   ];
 
-  for (const skill of knownSkillList) {
+  for (const skill of universalSkills) {
     const escaped = skill.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex = new RegExp(`(?:\\b|[^a-zA-Z0-9])${escaped}(?:\\b|[^a-zA-Z0-9])`, 'i');
-    if (regex.test(lowerText)) {
+    if (regex.test(lowerText) || lowerText.includes(skill.toLowerCase())) {
       foundSkills.add(normalizeSkill(skill));
     }
   }
@@ -93,20 +264,19 @@ export function extractSkillsFromText(text: string): string[] {
   return Array.from(foundSkills);
 }
 
-export function parseResumeDeterministic(text: string, fileName?: string): ParsedResumeData {
+export function parseResumeDeterministic(text: string, fileName?: string, dynamicSkills?: string[]): ParsedResumeData {
   // 1. Candidate Name extraction
   let name: string | null = null;
   if (fileName) {
     const cleanName = fileName.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ').trim();
-    // Capitalize words
-    name = cleanName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    name = cleanName.split(' ').filter(w => w.length > 0).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
   }
 
-  // Look for name at beginning of resume if not obvious
+  // Look for name at beginning of resume if text exists
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
-  if (!name && lines.length > 0) {
+  if (lines.length > 0) {
     const firstLine = lines[0];
-    if (firstLine.length < 40 && /^[A-Z][a-zA-Z\s.]+$/.test(firstLine)) {
+    if (firstLine.length >= 3 && firstLine.length < 35 && /^[A-Za-z\s.]+$/.test(firstLine) && !firstLine.toLowerCase().includes('resume') && !firstLine.toLowerCase().includes('curriculum')) {
       name = firstLine;
     }
   }
@@ -119,59 +289,76 @@ export function parseResumeDeterministic(text: string, fileName?: string): Parse
   const phoneMatch = text.match(/(?:\+?\d{1,3}[-.\s]?)?\(?\d{3,5}\)?[-.\s]?\d{3,5}[-.\s]?\d{3,5}/);
   const phone = phoneMatch ? phoneMatch[0].trim() : null;
 
-  // 4. Skills extraction
-  const skills = extractSkillsFromText(text);
+  // 4. Skills extraction — cross-industry + dynamic job skills
+  const skills = extractSkillsFromText(text, dynamicSkills);
 
-  // 5. Education extraction
+  // 5. Education extraction across ALL domains (Commerce, Arts, Science, Tech, Medical, Law)
   const education: Array<{ degree?: string; institution?: string; year?: string }> = [];
-  const degreeRegex = /\b(B\.?Tech|B\.?E|M\.?Tech|BCA|MCA|B\.?Sc|M\.?Sc|Bachelor|Master|Ph\.?D|Diploma)\b/i;
-  const eduMatches = text.match(new RegExp(`(?:${degreeRegex.source})[^.\\n]{0,80}`, 'gi'));
-  if (eduMatches) {
+  const degreeRegex = /\b(B\.?Com|M\.?Com|BBA|MBA|B\.?Tech|B\.?E|M\.?Tech|BCA|MCA|B\.?Sc|M\.?Sc|BA|MA|CA|CPA|CFA|LLB|LLM|MBBS|MD|B\.?Pharm|M\.?Pharm|Bachelor|Master|Ph\.?D|Diploma|Associate|Chartered)\b/i;
+  const eduMatches = text.match(new RegExp(`(?:${degreeRegex.source})[^.\\n]{0,70}`, 'gi'));
+  if (eduMatches && eduMatches.length > 0) {
     for (const em of eduMatches.slice(0, 3)) {
-      education.push({ degree: em.trim() });
+      education.push({ degree: em.trim().replace(/\s+/g, ' ') });
     }
   } else {
-    // Default sensible fallback from context
-    if (/computer science|information technology|engineering/i.test(text)) {
-      education.push({ degree: 'B.Tech in Computer Science' });
+    // Intelligent domain estimation
+    if (/account|finance|tax|audit|gst|tally/i.test(text)) {
+      education.push({ degree: 'Bachelor of Commerce (B.Com / Accounting)' });
+    } else if (/marketing|sales|business|brand|crm/i.test(text)) {
+      education.push({ degree: 'Bachelor / Master in Business Administration (BBA/MBA)' });
+    } else if (/design|ui|ux|graphic|creative/i.test(text)) {
+      education.push({ degree: "Bachelor's in Design / Fine Arts" });
+    } else if (/nurse|medical|clinical|patient/i.test(text)) {
+      education.push({ degree: 'B.Sc in Nursing / Healthcare' });
+    } else if (/human resources|hr|talent|recruiting/i.test(text)) {
+      education.push({ degree: 'Bachelor in Human Resources / Business Management' });
+    } else {
+      education.push({ degree: "Bachelor's Degree" });
     }
   }
 
-  // 6. Experience extraction
+  // 6. Experience extraction across ALL industries
   const experience: Array<{ role?: string; company?: string; duration?: string; details?: string }> = [];
   const expMatch = text.match(/(\d+(?:\.\d+)?)\s*(?:\+?\s*(?:years?|yrs?))/i);
   const expDuration = expMatch ? `${expMatch[1]} years` : '2+ years';
   
-  // Extract possible roles
-  const roleKeywords = ['Developer', 'Engineer', 'Analyst', 'Architect', 'Scientist', 'Consultant'];
-  for (const rk of roleKeywords) {
+  // Universal role keywords covering Business, Creative, Tech, Healthcare, Operations, Admin
+  const universalRoleKeywords = [
+    'Manager', 'Executive', 'Specialist', 'Lead', 'Coordinator', 'Director', 'Officer',
+    'Associate', 'Consultant', 'Accountant', 'Marketer', 'Designer', 'Engineer', 'Developer',
+    'Analyst', 'Architect', 'Recruiter', 'Representative', 'Nurse', 'Teacher', 'Administrator'
+  ];
+
+  for (const rk of universalRoleKeywords) {
     const roleRegex = new RegExp(`([A-Za-z\\s]{0,25}${rk})`, 'i');
     const rm = text.match(roleRegex);
-    if (rm && rm[1].length < 40) {
+    if (rm && rm[1].length < 40 && !rm[1].toLowerCase().includes('hiring') && !rm[1].toLowerCase().includes('looking')) {
       experience.push({
         role: rm[1].trim(),
-        company: 'Software Company',
+        company: 'Professional Organization',
         duration: expDuration,
-        details: 'Participated in software development, architecture, and deployment.'
+        details: `Demonstrated expertise and hands-on execution in ${rm[1].trim()} role.`
       });
       break;
     }
   }
+
   if (experience.length === 0) {
     experience.push({
-      role: 'Software Engineer',
-      company: 'Tech Solutions',
+      role: 'Professional Practitioner',
+      company: 'Corporate Enterprise',
       duration: expDuration,
+      details: 'Demonstrated experience in core domain competencies.'
     });
   }
 
-  // 7. Projects
+  // 7. Projects & Achievements
   const projects: Array<{ title?: string; description?: string }> = [];
-  if (/machine learning|deep learning|ai/i.test(text)) {
-    projects.push({ title: 'AI/ML Analytics Pipeline', description: 'Built automated data models and classification pipelines.' });
-  }
-  if (/web|react|frontend|backend|api/i.test(text)) {
-    projects.push({ title: 'Full Stack Web Platform', description: 'Developed scalable web services with responsive user interfaces.' });
+  if (skills.length > 0) {
+    projects.push({
+      title: `${skills[0]} Implementation & Operations`,
+      description: `Successfully delivered projects utilizing ${skills.slice(0, 3).join(', ')}.`
+    });
   }
 
   return {
@@ -182,19 +369,19 @@ export function parseResumeDeterministic(text: string, fileName?: string): Parse
     skills,
     experience,
     projects,
-    certifications: skills.length > 5 ? ['Certified Professional'] : []
+    certifications: skills.length > 4 ? ['Domain Certified Specialist'] : []
   };
 }
 
 // ============================================================================
-// 3. JOB REQUIREMENT PARSING
+// 3. JOB REQUIREMENT PARSING (ALL INDUSTRIES)
 // ============================================================================
 export function parseJobRequirements(
   titleOrDescription: string,
   descriptionOrSkills?: string | string[],
   explicitSkills?: string[]
 ): ParsedJobData {
-  let title = 'Software Engineer';
+  let title = 'Target Role';
   let description = '';
   let candidateExplicitSkills: string[] = [];
 
@@ -204,43 +391,67 @@ export function parseJobRequirements(
     candidateExplicitSkills = explicitSkills || [];
   } else {
     description = titleOrDescription;
-    title = description.slice(0, 50).trim() || 'Software Engineer';
+    title = description.slice(0, 60).trim() || 'Target Role';
     candidateExplicitSkills = (descriptionOrSkills as string[]) || [];
   }
 
   const reqSkills = new Set<string>();
 
-  // Include explicit skills provided by recruiter
+  // Include explicit skills provided by recruiter (split commas if present)
   if (candidateExplicitSkills && candidateExplicitSkills.length > 0) {
-    candidateExplicitSkills.forEach(s => reqSkills.add(normalizeSkill(s)));
+    candidateExplicitSkills.forEach(s => {
+      if (typeof s === 'string') {
+        s.split(/[,;\n]+/).map(p => p.trim()).filter(Boolean).forEach(clean => {
+          reqSkills.add(normalizeSkill(clean));
+        });
+      }
+    });
   }
 
   // Extract skills mentioned in description
-  const extracted = extractSkillsFromText(description);
+  const extracted = extractSkillsFromText(description, Array.from(reqSkills));
   extracted.forEach(s => reqSkills.add(s));
 
   // Determine experience requirement
   const expMatch = description.match(/(\d+(?:\.\d+)?)\s*(?:\+?\s*(?:years?|yrs?))/i);
   const expYears = expMatch ? parseFloat(expMatch[1]) : 2;
 
-  // Determine education requirement
-  let educationLevel = "Bachelor's Degree in Computer Science or related field";
-  if (/master/i.test(description)) educationLevel = "Master's Degree preferred";
+  // Determine education requirement based on job field
+  let educationLevel = "Bachelor's Degree or equivalent professional qualification";
+  const lowerTitleDesc = (title + ' ' + description).toLowerCase();
+
+  if (/account|finance|tax|audit|gst|tally|bookkeep/i.test(lowerTitleDesc)) {
+    educationLevel = "Bachelor's Degree in Commerce, Finance, Accounting (B.Com/BBA/CA/CPA) or related field";
+  } else if (/marketing|sales|business dev|brand|crm/i.test(lowerTitleDesc)) {
+    educationLevel = "Bachelor's or Master's Degree in Marketing, Business Administration (BBA/MBA), or related field";
+  } else if (/design|ui|ux|graphic|creative|art/i.test(lowerTitleDesc)) {
+    educationLevel = "Degree or Diploma in Graphic/Digital Design, Fine Arts, or demonstrated portfolio";
+  } else if (/nurse|medical|health|clinical|patient/i.test(lowerTitleDesc)) {
+    educationLevel = "Degree/Diploma in Nursing, Healthcare, or verified clinical certification";
+  } else if (/human resources|hr|recruiting|talent/i.test(lowerTitleDesc)) {
+    educationLevel = "Bachelor's Degree in Human Resources, Psychology, Business Administration, or related field";
+  } else if (/software|developer|engineer|data science|computer/i.test(lowerTitleDesc)) {
+    educationLevel = "Bachelor's Degree in Computer Science, Engineering, or related technical field";
+  }
+
+  if (/master/i.test(description)) {
+    educationLevel = "Master's Degree preferred or equivalent industry experience";
+  }
 
   const skillArray = Array.from(reqSkills);
 
   return {
     title,
-    required_skills: skillArray.slice(0, 8),
-    optional_skills: skillArray.slice(8),
+    required_skills: skillArray.slice(0, 10),
+    optional_skills: skillArray.slice(10),
     mandatory_requirements: [
-      `Hands-on experience with ${skillArray.slice(0, 3).join(', ') || 'core software tools'}`,
-      `Minimum ${expYears} years relevant industry experience`,
+      `Hands-on expertise in ${skillArray.slice(0, 3).join(', ') || 'core role responsibilities'}`,
+      `Minimum ${expYears} year(s) relevant industry experience`,
       educationLevel
     ],
     optional_requirements: [
-      'Experience in agile team environments',
-      'Familiarity with cloud platforms (AWS/GCP/Docker)'
+      'Strong organizational, interpersonal, and communication skills',
+      'Demonstrated capacity to lead initiatives and collaborate across teams'
     ],
     experience_years: expYears,
     education_level: educationLevel
@@ -364,10 +575,10 @@ export function calculateJobMatch(
   // 2. Multi-factor Score Breakdown
   const reqExpYears = job.experience_years || 2;
   const candExpCount = resume.experience?.length || 1;
-  const expFactor = Math.min(100, Math.round((candExpCount * 1.5 / reqExpYears) * 100));
-  const eduFactor = (resume.education && resume.education.length > 0) ? 90 : 65;
-  const projFactor = (resume.projects && resume.projects.length > 0) ? 85 : 50;
-  const certFactor = (resume.certifications && resume.certifications.length > 0) ? 80 : 55;
+  const expFactor = Math.min(100, Math.round((candExpCount * 1.2 / reqExpYears) * 100));
+  const eduFactor = (resume.education && resume.education.length > 0) ? 85 : 55;
+  const projFactor = (resume.projects && resume.projects.length > 0) ? 80 : 45;
+  const certFactor = (resume.certifications && resume.certifications.length > 0) ? 75 : 40;
 
   const score_breakdown = {
     skills: skill_match_percentage,
@@ -377,9 +588,17 @@ export function calculateJobMatch(
     certifications: certFactor
   };
 
-  // 3. Overall Job Match Score (Transparent weighted combination)
-  const rawMatchScore = (skill_match_percentage * 0.50) + (expFactor * 0.25) + (eduFactor * 0.15) + (projFactor * 0.10);
-  const match_score = Math.max(0, Math.min(100, Math.round(rawMatchScore)));
+  // 3. Overall Job Match Score (True differentiation based on actual skills and qualifications)
+  let match_score = 0;
+  if (matching_skills.length === 0) {
+    // Unrelated resume / zero matching skills: strictly low match (15 - 28%)
+    const baseline = Math.round((expFactor * 0.12) + (eduFactor * 0.10));
+    match_score = Math.max(15, Math.min(28, baseline));
+  } else {
+    // Proportional to actual skills matched with experience & credentials
+    const weighted = (skill_match_percentage * 0.65) + (expFactor * 0.20) + (eduFactor * 0.10) + (projFactor * 0.05);
+    match_score = Math.max(25, Math.min(98, Math.round(weighted)));
+  }
 
   // 4. Match Band (80-100 = strong, 60-79 = moderate, 0-59 = low)
   let match_band: 'strong_match' | 'moderate_match' | 'low_match' = 'low_match';
