@@ -119,21 +119,8 @@ export const ResumeService = {
    * Fetches all resumes available in the platform workspace.
    * If recruiterId has uploaded resumes, prioritize them; otherwise return all platform resumes.
    */
-  async getRecruiterResumes(recruiterId?: string): Promise<ResumeRecord[]> {
+  async getRecruiterResumes(_recruiterId?: string): Promise<ResumeRecord[]> {
     try {
-      if (recruiterId) {
-        const { data: userResumes } = await supabase
-          .from('resumes')
-          .select('*')
-          .eq('recruiter_id', recruiterId)
-          .order('uploaded_at', { ascending: false });
-
-        if (userResumes && userResumes.length > 0) {
-          return userResumes as ResumeRecord[];
-        }
-      }
-
-      // Fallback to all platform resumes so new accounts have full access
       const { data, error } = await supabase
         .from('resumes')
         .select('*')

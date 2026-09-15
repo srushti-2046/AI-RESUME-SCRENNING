@@ -263,7 +263,6 @@ const AppShell = () => {
   const activeNotifications = allNotifications.filter(
     (item: any) => !clearedNotifIds.includes(item.id || item.created_at)
   );
-  const unreadCount = activeNotifications.length;
 
   const handleClearAllNotifs = () => {
     const allIds = allNotifications.map((item: any) => item.id || item.created_at).filter(Boolean);
@@ -344,7 +343,7 @@ const AppShell = () => {
             <Link to="/upload" className="navbar-link">
               <FileText size={14} /> Resumes
             </Link>
-            <div style={{ position: 'relative' }}>
+            <div ref={notifRef} style={{ position: 'relative' }}>
               <button
                 type="button"
                 className="navbar-link"
@@ -354,41 +353,10 @@ const AppShell = () => {
                   setShowNotif(v => !v);
                 }}
                 title="Notifications"
-                style={{ position: 'relative', cursor: 'pointer' }}
-              >
-                <Bell size={14} /> Notifications
-                {unreadCount > 0 && <span className="navbar-notif-badge">{unreadCount}</span>}
-              </button>
-            </div>
-            <Link to="/settings" className="navbar-link">
-              <HelpCircle size={14} /> Help Centre
-            </Link>
-          </nav>
-
-          {/* Right: Notifications + Language + Auth */}
-          <div className="navbar-right">
-            <div ref={notifRef} style={{ position: 'relative' }}>
-              <button
-                type="button"
-                className="navbar-lang"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setShowNotif(v => !v);
-                }}
-                title="Notifications"
-                style={{
-                  position: 'relative',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '0.3rem 0.65rem'
-                }}
+                style={{ position: 'relative', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
               >
                 <Bell size={14} />
-                <span>Alerts</span>
-                {unreadCount > 0 && <span className="navbar-notif-badge">{unreadCount}</span>}
+                <span>Notifications</span>
               </button>
               {showNotif && (
                 <NotifPanel
@@ -399,6 +367,13 @@ const AppShell = () => {
                 />
               )}
             </div>
+            <Link to="/settings" className="navbar-link">
+              <HelpCircle size={14} /> Help Centre
+            </Link>
+          </nav>
+
+          {/* Right: Language + Auth */}
+          <div className="navbar-right">
 
             <button className="navbar-lang" onClick={() => addToast('System Language: English (US)', 'info')}>
               🌐 English <ChevronDown size={13} />

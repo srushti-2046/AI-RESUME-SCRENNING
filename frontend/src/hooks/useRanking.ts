@@ -7,7 +7,7 @@ export function useRanking() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedJobId, setSelectedJobId] = useState('all');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(25);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -15,7 +15,7 @@ export function useRanking() {
     candidates: [],
     totalCount: 0,
     page: 1,
-    pageSize: 10,
+    pageSize: 25,
     totalPages: 1,
     jobs: []
   });
