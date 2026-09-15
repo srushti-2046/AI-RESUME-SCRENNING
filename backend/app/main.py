@@ -54,14 +54,11 @@ app = FastAPI(
 # 1. Rate Limiting Middleware (Executes on all incoming requests)
 app.add_middleware(RateLimitMiddleware)
 
-# 2. CORS Middleware — environment-driven origins with Vercel regex support
-allowed_origins = [o for o in _settings.allowed_origins if o != "*"]
-has_wildcard = "*" in _settings.allowed_origins
-
+# 2. CORS Middleware — universal origin regex with credentials support
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_origin_regex=r"^https?://.*" if has_wildcard else r"^https?://.*\.vercel\.app$|^https?://localhost(:\d+)?$",
+    allow_origins=[],
+    allow_origin_regex=r".*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
