@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import {
   LayoutDashboard, Upload, Users, BarChart2, Award, ClipboardCheck,
   FileText, Settings, HelpCircle, ChevronDown,
@@ -105,27 +105,95 @@ const NavItem = ({ to, icon: Icon, label, badge }: { to: string; icon: any; labe
 // ===================== NOTIFICATIONS =====================
 const NotifPanel = ({ onClose, items, onClearAll, onItemClick }: { onClose: () => void, items: any[], onClearAll: () => void, onItemClick: (item: any) => void }) => {
   return (
-    <div className="card shadow-lg" style={{ position: 'absolute', top: '48px', right: '0', width: '320px', zIndex: 100, padding: 0, overflow: 'hidden' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.85rem 1.25rem', borderBottom: '1px solid var(--border)' }}>
-        <h3 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700 }}>Notifications</h3>
-        {items.length > 0 && (
-          <button className="text-xs hover-underline" onClick={onClearAll} style={{ color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer' }}>
-            Mark all as read
+    <div
+      className="card shadow-lg"
+      style={{
+        position: 'absolute',
+        top: '52px',
+        right: '0',
+        width: '340px',
+        zIndex: 9999,
+        padding: 0,
+        overflow: 'hidden',
+        border: '1px solid var(--border)',
+        background: 'var(--card-bg, #ffffff)',
+        boxShadow: '0 12px 36px rgba(0,0,0,0.35)',
+        borderRadius: '10px'
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0.85rem 1.25rem',
+          borderBottom: '1px solid var(--border)',
+          background: 'var(--card-hover-bg, #f8f9fa)'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Bell size={16} color="var(--accent, #6c5ce7)" />
+          <h3 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+            Notifications
+          </h3>
+          {items.length > 0 && (
+            <span style={{ fontSize: '0.7rem', fontWeight: 700, background: 'rgba(108,92,231,0.15)', color: 'var(--accent, #6c5ce7)', padding: '1px 6px', borderRadius: '10px' }}>
+              {items.length}
+            </span>
+          )}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {items.length > 0 && (
+            <button
+              className="text-xs hover-underline"
+              onClick={onClearAll}
+              style={{ color: 'var(--accent, #6c5ce7)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+            >
+              Mark all as read
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', padding: '2px' }}
+            title="Close notifications"
+          >
+            <X size={15} />
           </button>
-        )}
+        </div>
       </div>
-      <div style={{ maxHeight: '360px', overflowY: 'auto', background: 'var(--card-bg)' }}>
+      <div style={{ maxHeight: '360px', overflowY: 'auto', background: 'var(--card-bg, #ffffff)' }}>
         {items.length === 0 ? (
-          <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-            <Bell size={24} style={{ margin: '0 auto 0.5rem', opacity: 0.5 }} />
-            <div className="text-sm">Empty</div>
+          <div style={{ padding: '2.5rem 1.25rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+            <Bell size={32} style={{ margin: '0 auto 0.75rem', opacity: 0.35, color: 'var(--accent, #6c5ce7)' }} />
+            <div className="text-sm font-bold" style={{ color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
+              No notifications
+            </div>
+            <div className="text-xs" style={{ color: 'var(--text-muted)', lineHeight: 1.4 }}>
+              You're all caught up! New applicant screenings and system alerts will appear here.
+            </div>
           </div>
         ) : (
           items.map((item, i) => (
-            <div key={i} onClick={() => onItemClick(item)} style={{ padding: '0.85rem 1.25rem', borderBottom: '1px solid var(--border-light)', cursor: 'pointer', transition: 'background 0.2s', ...item.read ? { opacity: 0.6 } : { background: 'var(--card-hover-bg)' } }}>
-              <div className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>{item.action || 'Notification'}</div>
-              <div className="text-xs text-muted">{item.details || 'System activity'}</div>
-              <div className="text-xs text-muted mt-1" style={{ fontSize: '0.65rem' }}>{new Date(item.created_at).toLocaleString()}</div>
+            <div
+              key={i}
+              onClick={() => onItemClick(item)}
+              style={{
+                padding: '0.85rem 1.25rem',
+                borderBottom: '1px solid var(--border-light)',
+                cursor: 'pointer',
+                transition: 'background 0.2s',
+                ...(item.read ? { opacity: 0.6 } : { background: 'var(--card-hover-bg)' })
+              }}
+            >
+              <div className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+                {item.action || item.candidate_name || 'System Notification'}
+              </div>
+              <div className="text-xs text-muted">
+                {item.details || item.activity_message || 'Activity completed successfully.'}
+              </div>
+              <div className="text-xs text-muted mt-1" style={{ fontSize: '0.65rem' }}>
+                {item.created_at ? new Date(item.created_at).toLocaleString() : 'Recently'}
+              </div>
             </div>
           ))
         )}
@@ -237,22 +305,55 @@ const AppShell = () => {
             <Link to="/upload" className="navbar-link">
               <FileText size={14} /> Resumes
             </Link>
-            <div ref={notifRef} style={{ position: 'relative' }}>
+            <div ref={notifRef} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
               <button
                 type="button"
                 className="navbar-link"
+                id="navbar-notification-btn"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   setShowNotif(v => !v);
                 }}
                 title="Notifications"
-                style={{ position: 'relative', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', color: 'inherit', font: 'inherit' }}
+                style={{
+                  position: 'relative',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '7px',
+                  background: showNotif ? 'rgba(255, 255, 255, 0.14)' : 'none',
+                  border: 'none',
+                  color: '#ffffff',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  padding: '0 0.85rem',
+                  height: '52px',
+                  transition: 'background 0.2s ease, color 0.2s ease'
+                }}
               >
-                <Bell size={14} />
-                <span>Notifications</span>
+                <Bell size={15} style={{ color: '#ffffff' }} />
+                <span style={{ color: '#ffffff' }}>Notifications</span>
                 {activeNotifications.length > 0 && (
-                  <span style={{ position: 'absolute', top: '4px', right: '-4px', width: '8px', height: '8px', background: 'var(--red)', borderRadius: '50%' }}></span>
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: 'var(--red, #e74c3c)',
+                      color: '#ffffff',
+                      fontSize: '0.65rem',
+                      fontWeight: 700,
+                      borderRadius: '999px',
+                      padding: '1px 5px',
+                      marginLeft: '2px',
+                      minWidth: '16px',
+                      height: '16px',
+                      boxShadow: '0 0 6px rgba(231,76,60,0.8)'
+                    }}
+                  >
+                    {activeNotifications.length}
+                  </span>
                 )}
               </button>
               {showNotif && (
@@ -271,6 +372,36 @@ const AppShell = () => {
 
           {/* Right: Language + Auth */}
           <div className="navbar-right">
+            {/* Quick Bell in navbar-right for responsive / mobile view */}
+            <button
+              type="button"
+              className="navbar-lang"
+              onClick={() => setShowNotif(v => !v)}
+              title="Notifications"
+              style={{
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '0.4rem 0.65rem',
+                cursor: 'pointer'
+              }}
+            >
+              <Bell size={14} style={{ color: '#ffffff' }} />
+              {activeNotifications.length > 0 && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: '2px',
+                    right: '2px',
+                    width: '7px',
+                    height: '7px',
+                    backgroundColor: 'var(--red, #e74c3c)',
+                    borderRadius: '50%'
+                  }}
+                />
+              )}
+            </button>
 
             <button className="navbar-lang" onClick={() => addToast('System Language: English (US)', 'info')}>
               🌐 English <ChevronDown size={13} />
@@ -349,12 +480,8 @@ const AppShell = () => {
               <div className="sidebar-section-title">Analysis</div>
               <NavItem to="/analysis" icon={BarChart2} label="Analysis Result" />
               <NavItem to="/ranking" icon={Award} label="Ranking" />
-              {isAuthenticated && (
-                <>
-                  <NavItem to="/ats-check" icon={ShieldCheck} label="ATS Check" />
-                  <NavItem to="/duplicate" icon={Copy} label="Duplicate Detection" />
-                </>
-              )}
+              <NavItem to="/ats-check" icon={ShieldCheck} label="ATS Check" />
+              <NavItem to="/duplicate" icon={Copy} label="Duplicate Detection" />
 
               <div className="sidebar-section-title">Assessment</div>
               <NavItem to="/assessment" icon={ClipboardCheck} label="Assessment" />
@@ -415,6 +542,7 @@ const AppShell = () => {
                   <Route path="/ranking" element={<CandidateRanking />} />
                   <Route path="/summary" element={<CandidateSummary />} />
                   <Route path="/ats-check" element={<ATSCheckPage onShowToast={addToast} />} />
+                  <Route path="/ats" element={<Navigate to="/ats-check" replace />} />
                   <Route path="/duplicate" element={<DuplicateDetectionPage onShowToast={addToast} />} />
                   <Route path="/virtual-interview" element={<VirtualInterview />} />
                   <Route path="/assessment" element={<AssessmentBuilderPage onShowToast={addToast} />} />

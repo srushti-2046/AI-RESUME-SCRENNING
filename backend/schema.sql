@@ -1335,9 +1335,7 @@ begin
 end;
 $$;
 
-revoke execute on function public.run_ats_check(uuid, uuid) from public;
-revoke execute on function public.run_ats_check(uuid, uuid) from anon;
-grant execute on function public.run_ats_check(uuid, uuid) to authenticated;
+grant execute on function public.run_ats_check(uuid, uuid) to anon, authenticated, public;
 
 -- ============================================================================
 -- SCREEN 7: DUPLICATE RESUME DETECTION
@@ -1516,9 +1514,7 @@ begin
 end;
 $$;
 
-revoke execute on function public.run_duplicate_detection() from public;
-revoke execute on function public.run_duplicate_detection() from anon;
-grant execute on function public.run_duplicate_detection() to authenticated;
+grant execute on function public.run_duplicate_detection() to anon, authenticated, public;
 
 -- RPC: get_duplicate_resume_overview
 create or replace function public.get_duplicate_resume_overview()
@@ -1621,9 +1617,7 @@ begin
 end;
 $$;
 
-revoke execute on function public.get_duplicate_resume_overview() from public;
-revoke execute on function public.get_duplicate_resume_overview() from anon;
-grant execute on function public.get_duplicate_resume_overview() to authenticated;
+grant execute on function public.get_duplicate_resume_overview() to anon, authenticated, public;
 
 -- RPC: get_duplicate_category_resumes
 create or replace function public.get_duplicate_category_resumes(p_category text)
@@ -1723,9 +1717,7 @@ begin
 end;
 $$;
 
-revoke execute on function public.get_duplicate_category_resumes(text) from public;
-revoke execute on function public.get_duplicate_category_resumes(text) from anon;
-grant execute on function public.get_duplicate_category_resumes(text) to authenticated;
+grant execute on function public.get_duplicate_category_resumes(text) to anon, authenticated, public;
 
 -- RPC: get_duplicate_resume_comparison
 create or replace function public.get_duplicate_resume_comparison(
@@ -1911,9 +1903,7 @@ begin
 end;
 $$;
 
-revoke execute on function public.get_duplicate_resume_comparison(uuid, uuid) from public;
-revoke execute on function public.get_duplicate_resume_comparison(uuid, uuid) from anon;
-grant execute on function public.get_duplicate_resume_comparison(uuid, uuid) to authenticated;
+grant execute on function public.get_duplicate_resume_comparison(uuid, uuid) to anon, authenticated, public;
 
 -- =====================================================================
 -- 15. SCREEN 8 — ASSESSMENT BUILDER & CONFIGURATION SCHEMA & RPCS
