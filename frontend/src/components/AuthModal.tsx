@@ -328,7 +328,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                  Password
+                  {mode === 'signup' ? 'Create Password' : 'Password'}
                 </label>
                 {mode === 'signin' && (
                   <button
@@ -354,7 +354,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <Lock size={16} color="var(--text-muted)" style={{ position: 'absolute', left: 12 }} />
                 <input
                   type="password"
-                  placeholder="••••••••"
+                  placeholder={mode === 'signup' ? 'Create password' : '••••••••'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
