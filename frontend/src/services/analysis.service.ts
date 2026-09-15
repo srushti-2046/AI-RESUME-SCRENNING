@@ -369,12 +369,26 @@ export const AnalysisService = {
           console.warn('Background benchmark company fit calculation notice:', fitErr);
         });
 
-        // N. Update Resume processing status to 'analyzed'
+        // N. Update Resume processing status to 'analyzed' (fires PostgreSQL automation trigger)
         await supabase.from('resumes').update({
           processing_status: 'analyzed',
           error_message: null,
           updated_at: new Date().toISOString()
         }).eq('id', resume.id);
+
+        // O. Asynchronously guarantee ATS report generation and duplicate scan
+        (async () => {
+          try {
+            await supabase.rpc('run_ats_check', { p_resume_id: resume.id, p_job_id: jobId });
+          } catch (err) {
+            console.warn('Background ATS report generation notice:', err);
+          }
+          try {
+            await supabase.rpc('run_duplicate_detection');
+          } catch (err) {
+            console.warn('Background duplicate detection scan notice:', err);
+          }
+        })();
 
         results.push({
           resumeId: resume.id,
