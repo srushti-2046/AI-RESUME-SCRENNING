@@ -344,14 +344,50 @@ const AppShell = () => {
             <Link to="/upload" className="navbar-link">
               <FileText size={14} /> Resumes
             </Link>
-            <div ref={notifRef} style={{ position: 'relative' }}>
+            <div style={{ position: 'relative' }}>
               <button
+                type="button"
                 className="navbar-link"
-                onClick={() => setShowNotif(v => !v)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowNotif(v => !v);
+                }}
                 title="Notifications"
-                style={{ position: 'relative' }}
+                style={{ position: 'relative', cursor: 'pointer' }}
               >
                 <Bell size={14} /> Notifications
+                {unreadCount > 0 && <span className="navbar-notif-badge">{unreadCount}</span>}
+              </button>
+            </div>
+            <Link to="/settings" className="navbar-link">
+              <HelpCircle size={14} /> Help Centre
+            </Link>
+          </nav>
+
+          {/* Right: Notifications + Language + Auth */}
+          <div className="navbar-right">
+            <div ref={notifRef} style={{ position: 'relative' }}>
+              <button
+                type="button"
+                className="navbar-lang"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowNotif(v => !v);
+                }}
+                title="Notifications"
+                style={{
+                  position: 'relative',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '0.3rem 0.65rem'
+                }}
+              >
+                <Bell size={14} />
+                <span>Alerts</span>
                 {unreadCount > 0 && <span className="navbar-notif-badge">{unreadCount}</span>}
               </button>
               {showNotif && (
@@ -363,13 +399,7 @@ const AppShell = () => {
                 />
               )}
             </div>
-            <Link to="/settings" className="navbar-link">
-              <HelpCircle size={14} /> Help Centre
-            </Link>
-          </nav>
 
-          {/* Right: Language + Auth */}
-          <div className="navbar-right">
             <button className="navbar-lang" onClick={() => addToast('System Language: English (US)', 'info')}>
               🌐 English <ChevronDown size={13} />
             </button>

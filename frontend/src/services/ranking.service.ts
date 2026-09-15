@@ -9,8 +9,8 @@ import type {
 
 export const RankingService = {
   /**
-   * Retrieves live, read-only AI candidate rankings for the authenticated recruiter.
-   * Derives rank strictly from persisted resume_job_analysis.match_score.
+   * Retrieves live AI candidate rankings for all uploaded resumes across the platform.
+   * Derives rank deterministically by match_score DESC, resume_score DESC, and created_at DESC.
    */
   async getCandidateRanking(params: RankingParams = {}): Promise<RankingResponse> {
     const {
@@ -30,17 +30,10 @@ export const RankingService = {
     };
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        return defaultResponse;
-      }
-      const recruiterId = user.id;
-
-      // 1. Fetch available jobs for recruiter filter
+      // 1. Fetch available jobs across the platform for filtering
       const { data: jobsData } = await supabase
         .from('jobs')
         .select('id, title')
-        .eq('recruiter_id', recruiterId)
         .order('title', { ascending: true });
 
       const availableJobs: Array<{ id: string; title: string }> = (jobsData || []).map((j: any) => ({
@@ -48,7 +41,9 @@ export const RankingService = {
         title: j.title
       }));
 
-      // 2. Build candidate ranking query from authoritative resume_job_analysis
+      const trimmedSearch = search.trim();
+
+      // 2. Primary Query: resume_job_analysis joined with jobs, resumes, candidates
       let query = supabase
         .from('resume_job_analysis')
         .select(`
@@ -72,124 +67,171 @@ export const RankingService = {
               id,
               full_name,
               resume_score,
-              status
+              status,
+              current_job_title
             )
           )
         `, { count: 'exact' })
-        .eq('recruiter_id', recruiterId)
         .not('match_score', 'is', null);
 
-      // Optional Job Filter
       if (jobId && jobId !== 'all') {
         query = query.eq('job_id', jobId);
       }
 
-      // Optional Search Filter (candidate name or job title)
-      const trimmedSearch = search.trim();
-      if (trimmedSearch) {
-        const [{ data: matchingCands }, { data: matchingJobs }] = await Promise.all([
-          supabase
-            .from('candidates')
-            .select('id')
-            .eq('recruiter_id', recruiterId)
-            .ilike('full_name', `%${trimmedSearch}%`),
-          supabase
-            .from('jobs')
-            .select('id')
-            .eq('recruiter_id', recruiterId)
-            .ilike('title', `%${trimmedSearch}%`)
-        ]);
-
-        const candIds = (matchingCands || []).map((c: any) => c.id);
-        const jobIds = (matchingJobs || []).map((j: any) => j.id);
-
-        let matchingResumeIds: string[] = [];
-        if (candIds.length > 0) {
-          const { data: matchingResumes } = await supabase
-            .from('resumes')
-            .select('id')
-            .eq('recruiter_id', recruiterId)
-            .in('candidate_id', candIds);
-          matchingResumeIds = (matchingResumes || []).map((r: any) => r.id);
-        }
-
-        const orFilters: string[] = [];
-        if (matchingResumeIds.length > 0) {
-          orFilters.push(`resume_id.in.(${matchingResumeIds.join(',')})`);
-        }
-        if (jobIds.length > 0) {
-          orFilters.push(`job_id.in.(${jobIds.join(',')})`);
-        }
-
-        if (orFilters.length > 0) {
-          query = query.or(orFilters.join(','));
-        } else {
-          // No candidate or job matches search query -> return empty
-          return {
-            ...defaultResponse,
-            jobs: availableJobs
-          };
-        }
-      }
-
-      // Deterministic Server-Side Sorting:
-      // 1. match_score DESC
-      // 2. resume_score DESC
-      // 3. created_at DESC (analyzed_at)
-      // 4. id ASC
       query = query
         .order('match_score', { ascending: false })
         .order('resume_score', { ascending: false })
-        .order('created_at', { ascending: false })
-        .order('id', { ascending: true });
+        .order('created_at', { ascending: false });
 
-      // Server-side pagination
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
       query = query.range(from, to);
 
       const { data, count, error } = await query;
 
-      if (error) {
-        console.error('RankingService.getCandidateRanking error:', error);
+      // 3. If resume_job_analysis has records, map and return them
+      if (!error && data && data.length > 0) {
+        const rawRows = [...data];
+
+        // In-page tie-breaking
+        rawRows.sort((a: any, b: any) => {
+          const matchDiff = Number(b.match_score) - Number(a.match_score);
+          if (matchDiff !== 0) return matchDiff;
+
+          const resA = Array.isArray(a.resumes) ? a.resumes[0] : a.resumes;
+          const resB = Array.isArray(b.resumes) ? b.resumes[0] : b.resumes;
+          const candA = Array.isArray(resA?.candidates) ? resA.candidates[0] : resA?.candidates;
+          const candB = Array.isArray(resB?.candidates) ? resB.candidates[0] : resB?.candidates;
+          const resumeScoreA = Number(a.resume_score ?? candA?.resume_score ?? 0);
+          const resumeScoreB = Number(b.resume_score ?? candB?.resume_score ?? 0);
+          return resumeScoreB - resumeScoreA;
+        });
+
+        // Apply client search filtering if provided
+        let filteredRows = rawRows;
+        if (trimmedSearch) {
+          const lower = trimmedSearch.toLowerCase();
+          filteredRows = rawRows.filter((r: any) => {
+            const resumeData = Array.isArray(r.resumes) ? r.resumes[0] : r.resumes;
+            const cand = Array.isArray(resumeData?.candidates) ? resumeData.candidates[0] : resumeData?.candidates;
+            const jobData = Array.isArray(r.jobs) ? r.jobs[0] : r.jobs;
+            return (
+              cand?.full_name?.toLowerCase().includes(lower) ||
+              cand?.current_job_title?.toLowerCase().includes(lower) ||
+              jobData?.title?.toLowerCase().includes(lower) ||
+              resumeData?.file_name?.toLowerCase().includes(lower)
+            );
+          });
+        }
+
+        const candidates: RankingCandidate[] = filteredRows.map((row: any, index: number) => {
+          const jobData = Array.isArray(row.jobs) ? row.jobs[0] : row.jobs;
+          const resumeData = Array.isArray(row.resumes) ? row.resumes[0] : row.resumes;
+          const candidateData = Array.isArray(resumeData?.candidates)
+            ? resumeData.candidates[0]
+            : resumeData?.candidates;
+
+          const candidateName = candidateData?.full_name || resumeData?.file_name?.replace(/\.[^/.]+$/, '') || 'Candidate';
+          const initials = candidateName
+            .split(' ')
+            .map((n: string) => n[0])
+            .filter(Boolean)
+            .slice(0, 2)
+            .join('')
+            .toUpperCase() || 'CD';
+
+          const matchScore = Math.round(Number(row.match_score) || 0);
+          const resumeScore = Math.round(Number(row.resume_score ?? candidateData?.resume_score) || matchScore);
+          const status: RankingStatus = (matchScore >= 60 || candidateData?.status === 'shortlisted') ? 'shortlisted' : 'rejected';
+
+          let matchBand: RankingMatchBand = 'low_match';
+          let matchBandLabel = 'Low Match';
+          if (matchScore >= 80) {
+            matchBand = 'strong_match';
+            matchBandLabel = 'Strong Match';
+          } else if (matchScore >= 60) {
+            matchBand = 'moderate_match';
+            matchBandLabel = 'Moderate Match';
+          }
+
+          const rank = (page - 1) * pageSize + index + 1;
+
+          return {
+            rank,
+            id: row.id,
+            candidateId: candidateData?.id || '',
+            resumeId: row.resume_id || resumeData?.id || '',
+            jobId: row.job_id || jobData?.id || '',
+            candidateName,
+            initials,
+            role: jobData?.title || candidateData?.current_job_title || 'Software Developer',
+            matchScore,
+            resumeScore,
+            status,
+            matchBand,
+            matchBandLabel,
+            analyzedAt: row.created_at
+          };
+        });
+
+        const totalCount = count || candidates.length;
+        const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
         return {
-          ...defaultResponse,
+          candidates,
+          totalCount,
+          page,
+          pageSize,
+          totalPages,
           jobs: availableJobs
         };
       }
 
-      const totalCount = count || 0;
-      const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+      // 4. Fallback Safeguard: query candidates directly joined with resumes & jobs
+      let candQuery = supabase
+        .from('candidates')
+        .select(`
+          id,
+          full_name,
+          current_job_title,
+          match_score,
+          resume_score,
+          status,
+          created_at,
+          job_id,
+          jobs (
+            id,
+            title
+          ),
+          resumes (
+            id,
+            file_name
+          )
+        `, { count: 'exact' });
 
-      // Map rows to RankingCandidate model with secondary sort verification and global sequential ranks
-      const rawRows = (data || []) as any[];
+      if (jobId && jobId !== 'all') {
+        candQuery = candQuery.eq('job_id', jobId);
+      }
 
-      // In-page tie-breaking: match_score DESC, resume_score DESC, created_at DESC, id ASC
-      rawRows.sort((a, b) => {
-        const matchDiff = Number(b.match_score) - Number(a.match_score);
-        if (matchDiff !== 0) return matchDiff;
+      if (trimmedSearch) {
+        candQuery = candQuery.or(`full_name.ilike.%${trimmedSearch}%,current_job_title.ilike.%${trimmedSearch}%`);
+      }
 
-        const candA = Array.isArray(a.resumes?.candidates) ? a.resumes.candidates[0] : a.resumes?.candidates;
-        const candB = Array.isArray(b.resumes?.candidates) ? b.resumes.candidates[0] : b.resumes?.candidates;
-        const resumeScoreA = Number(a.resume_score ?? candA?.resume_score ?? 0);
-        const resumeScoreB = Number(b.resume_score ?? candB?.resume_score ?? 0);
-        const resumeScoreDiff = resumeScoreB - resumeScoreA;
-        if (resumeScoreDiff !== 0) return resumeScoreDiff;
+      candQuery = candQuery
+        .order('match_score', { ascending: false })
+        .order('resume_score', { ascending: false })
+        .range(from, to);
 
-        const timeDiff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        if (timeDiff !== 0) return timeDiff;
+      const { data: candData, count: candCount } = await candQuery;
 
-        return String(a.id).localeCompare(String(b.id));
-      });
+      const fallbackCandidates: RankingCandidate[] = (candData || []).map((c: any, index: number) => {
+        const matchScore = Math.round(Number(c.match_score) || 0);
+        const resumeScore = Math.round(Number(c.resume_score) || matchScore);
+        const status: RankingStatus = (c.status === 'shortlisted' || matchScore >= 60) ? 'shortlisted' : 'rejected';
+        const rawResumes = Array.isArray(c.resumes) ? c.resumes : (c.resumes ? [c.resumes] : []);
+        const jobData = Array.isArray(c.jobs) ? c.jobs[0] : c.jobs;
 
-      const candidates: RankingCandidate[] = rawRows.map((row, index) => {
-        const jobData = Array.isArray(row.jobs) ? row.jobs[0] : row.jobs;
-        const resumeData = Array.isArray(row.resumes) ? row.resumes[0] : row.resumes;
-        const candidateData = Array.isArray(resumeData?.candidates)
-          ? resumeData.candidates[0]
-          : resumeData?.candidates;
-
-        const candidateName = candidateData?.full_name || 'Candidate';
+        const candidateName = c.full_name || 'Candidate';
         const initials = candidateName
           .split(' ')
           .map((n: string) => n[0])
@@ -198,13 +240,6 @@ export const RankingService = {
           .join('')
           .toUpperCase() || 'CD';
 
-        const matchScore = Math.round(Number(row.match_score) || 0);
-        const resumeScore = Math.round(Number(row.resume_score ?? candidateData?.resume_score) || 0);
-
-        // Automated Screen 4 classification rule: >= 60 -> shortlisted, < 60 -> rejected
-        const status: RankingStatus = matchScore >= 60 ? 'shortlisted' : 'rejected';
-
-        // Match Band
         let matchBand: RankingMatchBand = 'low_match';
         let matchBandLabel = 'Low Match';
         if (matchScore >= 80) {
@@ -215,29 +250,29 @@ export const RankingService = {
           matchBandLabel = 'Moderate Match';
         }
 
-        // Global sequential rank across pages (e.g. Page 1: 1-10, Page 2: 11-20)
-        const rank = (page - 1) * pageSize + index + 1;
-
         return {
-          rank,
-          id: row.id,
-          candidateId: candidateData?.id || '',
-          resumeId: row.resume_id,
-          jobId: row.job_id,
+          rank: (page - 1) * pageSize + index + 1,
+          id: c.id,
+          candidateId: c.id,
+          resumeId: rawResumes[0]?.id || c.id,
+          jobId: c.job_id || jobData?.id || '',
           candidateName,
           initials,
-          role: jobData?.title || 'Target Position',
+          role: jobData?.title || c.current_job_title || 'Software Developer',
           matchScore,
           resumeScore,
           status,
           matchBand,
           matchBandLabel,
-          analyzedAt: row.created_at
+          analyzedAt: c.created_at
         };
       });
 
+      const totalCount = candCount || fallbackCandidates.length;
+      const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
       return {
-        candidates,
+        candidates: fallbackCandidates,
         totalCount,
         page,
         pageSize,
