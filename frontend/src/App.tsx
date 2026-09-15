@@ -103,10 +103,17 @@ const NavItem = ({ to, icon: Icon, label, badge }: { to: string; icon: any; labe
 };
 
 // ===================== NOTIFICATIONS =====================
-const NotifPanel = ({ onClose, items, onClearAll, onItemClick }: { onClose: () => void, items: any[], onClearAll: () => void, onItemClick: (item: any) => void }) => {
+const NotifPanel: React.FC<{
+  onClose: () => void;
+  items: any[];
+  onItemClick: (item: any) => void;
+  onClearAll: () => void;
+  isAuthenticated: boolean;
+  onSignInClick: () => void;
+}> = ({ onClose, items, onItemClick, onClearAll, isAuthenticated, onSignInClick }) => {
   return (
     <div
-      className="card shadow-lg"
+      className="card"
       style={{
         position: 'absolute',
         top: '52px',
@@ -136,14 +143,14 @@ const NotifPanel = ({ onClose, items, onClearAll, onItemClick }: { onClose: () =
           <h3 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>
             Notifications
           </h3>
-          {items.length > 0 && (
+          {isAuthenticated && items.length > 0 && (
             <span style={{ fontSize: '0.7rem', fontWeight: 700, background: 'rgba(108,92,231,0.15)', color: 'var(--accent, #6c5ce7)', padding: '1px 6px', borderRadius: '10px' }}>
               {items.length}
             </span>
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {items.length > 0 && (
+          {isAuthenticated && items.length > 0 && (
             <button
               className="text-xs hover-underline"
               onClick={onClearAll}
@@ -162,7 +169,28 @@ const NotifPanel = ({ onClose, items, onClearAll, onItemClick }: { onClose: () =
         </div>
       </div>
       <div style={{ maxHeight: '360px', overflowY: 'auto', background: 'var(--card-bg, #ffffff)' }}>
-        {items.length === 0 ? (
+        {!isAuthenticated ? (
+          <div style={{ padding: '2.5rem 1.25rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+            <Bell size={32} style={{ margin: '0 auto 0.75rem', opacity: 0.35, color: 'var(--accent, #6c5ce7)' }} />
+            <div className="text-sm font-bold" style={{ color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
+              No notifications
+            </div>
+            <div className="text-xs" style={{ color: 'var(--text-muted)', lineHeight: 1.4, marginBottom: '0.85rem' }}>
+              Notifications are private to each user. Please sign in or sign up to view your notifications.
+            </div>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => {
+                onClose();
+                onSignInClick();
+              }}
+              style={{ fontSize: '0.78rem', padding: '0.4rem 0.95rem', fontWeight: 600 }}
+            >
+              Sign In / Sign Up
+            </button>
+          </div>
+        ) : items.length === 0 ? (
           <div style={{ padding: '2.5rem 1.25rem', textAlign: 'center', color: 'var(--text-muted)' }}>
             <Bell size={32} style={{ margin: '0 auto 0.75rem', opacity: 0.35, color: 'var(--accent, #6c5ce7)' }} />
             <div className="text-sm font-bold" style={{ color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
@@ -216,30 +244,48 @@ const AppShell = () => {
   const [showNotif, setShowNotif] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   
-  const [clearedNotifIds, setClearedNotifIds] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem('cleared_notif_ids') || '[]'); } catch { return []; }
-  });
+  const [clearedNotifIds, setClearedNotifIds] = useState<string[]>([]);
 
-  const allNotifications = dashboard.data?.recentActivity || [];
+  useEffect(() => {
+    if (isAuthenticated && user?.id) {
+      try {
+        const stored = JSON.parse(localStorage.getItem(`cleared_notif_ids_${user.id}`) || '[]');
+        setClearedNotifIds(stored);
+      } catch {
+        setClearedNotifIds([]);
+      }
+    } else {
+      setClearedNotifIds([]);
+    }
+  }, [isAuthenticated, user?.id]);
+
+  // Notifications are strictly private to the signed-in user.
+  // Before sign in or sign up, notifications are completely empty.
+  const allNotifications = (isAuthenticated && user?.id && dashboard.data?.recentActivity)
+    ? (dashboard.data.recentActivity as any[]).filter((item: any) => !item.recruiter_id || item.recruiter_id === user.id)
+    : [];
+
   const activeNotifications = allNotifications.filter((item: any) => {
     const id = item.id || item.created_at;
     return !clearedNotifIds.includes(id);
   });
 
   const handleClearAllNotifs = () => {
+    if (!isAuthenticated || !user?.id) return;
     const allIds = allNotifications.map((item: any) => item.id || item.created_at).filter(Boolean);
     const updated = Array.from(new Set([...clearedNotifIds, ...allIds]));
     setClearedNotifIds(updated);
-    localStorage.setItem('cleared_notif_ids', JSON.stringify(updated));
+    localStorage.setItem(`cleared_notif_ids_${user.id}`, JSON.stringify(updated));
     addToast('All notifications marked as read', 'info');
   };
 
   const handleDismissNotif = (item: any) => {
+    if (!isAuthenticated || !user?.id) return;
     const id = item.id || item.created_at;
     if (id) {
       const updated = [...clearedNotifIds, id];
       setClearedNotifIds(updated);
-      localStorage.setItem('cleared_notif_ids', JSON.stringify(updated));
+      localStorage.setItem(`cleared_notif_ids_${user.id}`, JSON.stringify(updated));
     }
   };
 
@@ -334,7 +380,7 @@ const AppShell = () => {
               >
                 <Bell size={15} style={{ color: '#ffffff' }} />
                 <span style={{ color: '#ffffff' }}>Notifications</span>
-                {activeNotifications.length > 0 && (
+                {isAuthenticated && activeNotifications.length > 0 && (
                   <span
                     style={{
                       display: 'inline-flex',
@@ -362,6 +408,11 @@ const AppShell = () => {
                   items={activeNotifications}
                   onClearAll={handleClearAllNotifs}
                   onItemClick={handleDismissNotif}
+                  isAuthenticated={isAuthenticated}
+                  onSignInClick={() => {
+                    setAuthMode('signin');
+                    setAuthModalOpen(true);
+                  }}
                 />
               )}
             </div>
@@ -388,7 +439,7 @@ const AppShell = () => {
               }}
             >
               <Bell size={14} style={{ color: '#ffffff' }} />
-              {activeNotifications.length > 0 && (
+              {isAuthenticated && activeNotifications.length > 0 && (
                 <span
                   style={{
                     position: 'absolute',
@@ -621,13 +672,15 @@ const Dashboard = () => {
         { day: 'Thu', resumes: 0 }, { day: 'Fri', resumes: 0 }, { day: 'Sat', resumes: 0 }, { day: 'Sun', resumes: 0 },
       ];
 
-  const recentActivity = (data?.recentActivity && data.recentActivity.length > 0)
-    ? data.recentActivity.map(a => ({
-        file: a.file_name,
-        status: a.candidate_status ? (a.candidate_status.charAt(0).toUpperCase() + a.candidate_status.slice(1).replace('_', ' ')) : (a.activity_type.charAt(0).toUpperCase() + a.activity_type.slice(1)),
-        statusClass: a.candidate_status === 'shortlisted' ? 'badge-green' : a.candidate_status === 'rejected' ? 'badge-red' : a.candidate_status === 'pending_review' ? 'badge-yellow' : 'badge-blue',
-        time: new Date(a.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      }))
+  const recentActivity = (isAuthenticated && user?.id && data?.recentActivity && data.recentActivity.length > 0)
+    ? (data.recentActivity as any[])
+        .filter((a: any) => !a.recruiter_id || a.recruiter_id === user.id)
+        .map(a => ({
+          file: a.file_name,
+          status: a.candidate_status ? (a.candidate_status.charAt(0).toUpperCase() + a.candidate_status.slice(1).replace('_', ' ')) : (a.activity_type.charAt(0).toUpperCase() + a.activity_type.slice(1)),
+          statusClass: a.candidate_status === 'shortlisted' ? 'badge-green' : a.candidate_status === 'rejected' ? 'badge-red' : a.candidate_status === 'pending_review' ? 'badge-yellow' : 'badge-blue',
+          time: new Date(a.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        }))
     : [];
 
   const topCandidates = (data?.topCandidates && data.topCandidates.length > 0)
@@ -765,12 +818,22 @@ const Dashboard = () => {
         <div className="card">
           <div className="section-header">
             <span className="section-title">Recent Activity</span>
-            <Link to="/candidates" className="section-link">View All →</Link>
+            {isAuthenticated && <Link to="/candidates" className="section-link">View All →</Link>}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
-            {recentActivity.length === 0 ? (
+            {!isAuthenticated ? (
+              <div style={{ padding: '2rem 1.25rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                <Bell size={28} style={{ margin: '0 auto 0.5rem', opacity: 0.35, color: 'var(--accent)' }} />
+                <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
+                  No notifications
+                </div>
+                <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                  Sign in or sign up to view your notifications and activity history.
+                </div>
+              </div>
+            ) : recentActivity.length === 0 ? (
               <div style={{ padding: '1.5rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.82rem' }}>
-                No candidate activity recorded yet.
+                No notifications recorded yet.
               </div>
             ) : recentActivity.map((a, i) => (
               <div key={i} className="flex items-center justify-between" style={{ padding: '0.45rem 0', borderBottom: i < recentActivity.length - 1 ? '1px solid var(--border-light)' : 'none' }}>
