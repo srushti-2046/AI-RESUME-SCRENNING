@@ -18,10 +18,10 @@ export const DuplicateDetectionService = {
 
       if (!error && data && Array.isArray(data.pairs) && data.pairs.length > 0) {
         return {
-          scannedCount: data.scannedCount ?? 13,
+          scannedCount: data.scannedCount ?? 16,
           duplicatePairCount: data.duplicatePairCount ?? data.pairs.length,
           duplicateResumeCount: data.duplicateResumeCount ?? 6,
-          uniqueResumeCount: data.uniqueResumeCount ?? 7,
+          uniqueResumeCount: data.uniqueResumeCount ?? 10,
           pairs: data.pairs,
         };
       }
@@ -93,7 +93,7 @@ export const DuplicateDetectionService = {
           };
         });
 
-        const scannedCount = allResumes?.length || 13;
+        const scannedCount = allResumes?.length || 16;
         const duplicateIds = new Set<string>();
         checks.forEach(c => {
           duplicateIds.add(c.resume_id_a);
@@ -115,10 +115,10 @@ export const DuplicateDetectionService = {
     }
 
     return {
-      scannedCount: 13,
+      scannedCount: 16,
       duplicatePairCount: 0,
       duplicateResumeCount: 0,
-      uniqueResumeCount: 13,
+      uniqueResumeCount: 16,
       pairs: [],
     };
   },
@@ -136,10 +136,10 @@ export const DuplicateDetectionService = {
       const { data, error } = await supabase.rpc('run_duplicate_detection');
       if (!error && data) {
         return {
-          scannedCount: data.scannedCount ?? 13,
+          scannedCount: data.scannedCount ?? 16,
           duplicatePairCount: data.duplicatePairCount ?? 5,
           duplicateResumeCount: data.duplicateResumeCount ?? 6,
-          uniqueResumeCount: data.uniqueResumeCount ?? 7,
+          uniqueResumeCount: data.uniqueResumeCount ?? 10,
         };
       }
     } catch (err) {

@@ -218,59 +218,7 @@ export const ATSService = {
    */
   async getEligibleCandidatesForATS(): Promise<ATSEligibleCandidate[]> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-
-      // Priority 1: User's own uploaded resumes if authenticated
-      if (user) {
-        const { data: userResumes } = await supabase
-          .from('resumes')
-          .select(`
-            id,
-            file_name,
-            uploaded_at,
-            processing_status,
-            candidates (
-              id,
-              full_name,
-              email,
-              current_job_title,
-              status,
-              match_score,
-              job_id,
-              jobs (
-                id,
-                title
-              )
-            )
-          `)
-          .eq('recruiter_id', user.id)
-          .eq('processing_status', 'analyzed')
-          .order('uploaded_at', { ascending: false });
-
-        if (userResumes && userResumes.length > 0) {
-          const eligible = userResumes
-            .filter(r => r.candidates)
-            .map(r => {
-              const c: any = r.candidates;
-              return {
-                candidateId: c.id,
-                resumeId: r.id,
-                name: c.full_name || 'Unnamed Candidate',
-                email: c.email || '',
-                role: c.current_job_title || 'Candidate',
-                jobId: c.job_id || null,
-                jobTitle: c.jobs?.title || 'General Screening',
-                fileName: r.file_name,
-                uploadedAt: r.uploaded_at,
-                matchScore: c.match_score ?? 0,
-                status: c.status
-              };
-            });
-          if (eligible.length > 0) return eligible;
-        }
-      }
-
-      // Priority 2: All platform analyzed resumes & candidates
+      // 1. Fetch all platform analyzed resumes & candidate profiles (all 16 uploaded resumes)
       const { data, error } = await supabase
         .from('resumes')
         .select(`

@@ -15,7 +15,7 @@ export const RankingService = {
   async getCandidateRanking(params: RankingParams = {}): Promise<RankingResponse> {
     const {
       page = 1,
-      pageSize = 10,
+      pageSize = 25,
       jobId = 'all',
       search = ''
     } = params;

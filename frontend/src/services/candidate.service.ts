@@ -213,8 +213,6 @@ export const CandidateService = {
       if (!user) {
         return null;
       }
-      const recruiterId = user.id;
-
       // 1. Fetch Candidate
       const { data: candidate, error: candErr } = await supabase
         .from('candidates')
@@ -246,8 +244,7 @@ export const CandidateService = {
           )
         `)
         .eq('id', candidateId)
-        .eq('recruiter_id', recruiterId)
-        .single();
+        .maybeSingle();
 
       if (candErr || !candidate) {
         console.error('getCandidateSummary candidate error:', candErr);
