@@ -152,12 +152,12 @@ export const ATSCheckPage: React.FC<ATSCheckPageProps> = ({ onShowToast }) => {
 
       {/* Error Banner */}
       {error && (
-        <div className="card mb-4" style={{ background: '#fef2f2', border: '1px solid #fca5a5', padding: '1.25rem' }}>
+        <div className="card mb-4" style={{ background: 'var(--red-bg, #fef2f2)', border: '1px solid var(--red, #e74c3c)', padding: '1.25rem' }}>
           <div className="flex items-center gap-3">
             <XCircle size={22} color="var(--red, #e74c3c)" />
             <div style={{ flex: 1 }}>
-              <div className="text-sm font-bold" style={{ color: '#991b1b' }}>ATS Evaluation Notice</div>
-              <div className="text-xs" style={{ color: '#b91c1c' }}>{error}</div>
+              <div className="text-sm font-bold" style={{ color: 'var(--red-text, #991b1b)' }}>ATS Evaluation Notice</div>
+              <div className="text-xs" style={{ color: 'var(--red-text, #b91c1c)' }}>{error}</div>
             </div>
             <button className="btn btn-secondary btn-sm" onClick={handleReanalyze} disabled={analyzing}>
               <RotateCw size={14} className={analyzing ? 'spin' : ''} /> Retry Check
@@ -175,7 +175,7 @@ export const ATSCheckPage: React.FC<ATSCheckPageProps> = ({ onShowToast }) => {
               {analyzing && (
                 <div style={{
                   position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-                  background: 'rgba(255,255,255,0.75)', zIndex: 10,
+                  backgroundColor: 'var(--card-bg)', opacity: 0.9, zIndex: 10,
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                   borderRadius: 12
                 }}>
@@ -226,7 +226,7 @@ export const ATSCheckPage: React.FC<ATSCheckPageProps> = ({ onShowToast }) => {
                 <div
                   className="score-circle"
                   style={{
-                    background: `conic-gradient(${getScoreColor(report.atsScore)} 0% ${report.atsScore}%, #e4e7f0 ${report.atsScore}% 100%)`,
+                    background: `conic-gradient(${getScoreColor(report.atsScore)} 0% ${report.atsScore}%, var(--border) ${report.atsScore}% 100%)`,
                     width: 110,
                     height: 110,
                     borderRadius: '50%',
@@ -278,7 +278,7 @@ export const ATSCheckPage: React.FC<ATSCheckPageProps> = ({ onShowToast }) => {
 
               {/* Metric Independence Callout */}
               <div style={{
-                background: 'var(--hover-bg, #f8f9fa)',
+                background: 'var(--card-hover-bg, #f8f9fa)',
                 borderRadius: 8,
                 padding: '0.65rem',
                 marginTop: '1.25rem',
@@ -289,8 +289,8 @@ export const ATSCheckPage: React.FC<ATSCheckPageProps> = ({ onShowToast }) => {
                 <div className="flex items-center justify-center gap-1 font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
                   <Info size={13} /> Independent Metric
                 </div>
-                <div>Resume Quality: <strong>{candidate?.resumeScore ?? 0}%</strong></div>
-                <div>Job Match: <strong>{candidate?.matchScore ?? 0}%</strong></div>
+                <div>Resume Quality: <strong style={{ color: 'var(--text-primary)' }}>{candidate?.resumeScore ?? 0}%</strong></div>
+                <div>Job Match: <strong style={{ color: 'var(--text-primary)' }}>{candidate?.matchScore ?? 0}%</strong></div>
                 <div className="text-xs" style={{ marginTop: 4, color: candidate?.status === 'shortlisted' ? 'var(--green)' : 'var(--red)' }}>
                   Hiring Decision: <strong>{candidate?.status === 'shortlisted' ? 'Shortlisted (≥60%)' : 'Rejected (<60%)'}</strong>
                 </div>
@@ -340,9 +340,9 @@ export const ATSCheckPage: React.FC<ATSCheckPageProps> = ({ onShowToast }) => {
                       style={{
                         borderRadius: 8,
                         border: `1px solid ${
-                          c.status === 'fail' ? '#fca5a5' : c.status === 'warn' ? '#fde68a' : '#a7f3d0'
+                          c.status === 'fail' ? 'var(--red)' : c.status === 'warn' ? 'var(--yellow)' : 'var(--green)'
                         }`,
-                        background: c.status === 'fail' ? 'var(--red-bg, #fef2f2)' : c.status === 'warn' ? 'var(--yellow-bg, #fffbeb)' : 'var(--green-bg, #ecfdf5)',
+                        background: c.status === 'fail' ? 'var(--red-bg)' : c.status === 'warn' ? 'var(--yellow-bg)' : 'var(--green-bg)',
                         overflow: 'hidden',
                         transition: 'all 0.2s ease'
                       }}
@@ -406,8 +406,8 @@ export const ATSCheckPage: React.FC<ATSCheckPageProps> = ({ onShowToast }) => {
                         <div
                           style={{
                             padding: '0.75rem 1rem',
-                            borderTop: '1px solid rgba(0,0,0,0.06)',
-                            background: 'rgba(255,255,255,0.7)',
+                            borderTop: '1px solid var(--border)',
+                            background: 'var(--card-hover-bg, rgba(255,255,255,0.05))',
                             fontSize: '0.75rem'
                           }}
                         >
@@ -484,7 +484,7 @@ export const ATSCheckPage: React.FC<ATSCheckPageProps> = ({ onShowToast }) => {
                     gap: '0.65rem',
                     padding: '0.85rem',
                     borderRadius: 8,
-                    background: 'var(--hover-bg, #f8f9fa)',
+                    background: 'var(--card-hover-bg, #f8f9fa)',
                     border: '1px solid var(--border)'
                   }}
                 >
