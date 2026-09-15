@@ -20,7 +20,6 @@ export const CandidateFilters: React.FC<CandidateFiltersProps> = ({
   const tabs: Array<{ id: CandidateFilterTab; label: string; count: number }> = [
     { id: 'all', label: 'All', count: counts.all },
     { id: 'shortlisted', label: 'Shortlisted', count: counts.shortlisted },
-    { id: 'pending_review', label: 'Pending Review', count: counts.pending_review || 0 },
     { id: 'rejected', label: 'Rejected', count: counts.rejected }
   ];
 

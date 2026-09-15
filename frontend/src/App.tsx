@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Upload, Users, BarChart2, Award, ClipboardCheck,
   FileText, Settings, HelpCircle, ChevronDown,
   ArrowLeft, Download, Pencil, Trash2, Plus, Check, X, Search,
-  UserCheck,
+  UserCheck, Bell,
   ShieldCheck, Copy, Mic,
   RefreshCw, Star, Zap, User,
   Moon, Sun
@@ -102,6 +102,38 @@ const NavItem = ({ to, icon: Icon, label, badge }: { to: string; icon: any; labe
   );
 };
 
+// ===================== NOTIFICATIONS =====================
+const NotifPanel = ({ onClose, items, onClearAll, onItemClick }: { onClose: () => void, items: any[], onClearAll: () => void, onItemClick: (item: any) => void }) => {
+  return (
+    <div className="card shadow-lg" style={{ position: 'absolute', top: '48px', right: '0', width: '320px', zIndex: 100, padding: 0, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.85rem 1.25rem', borderBottom: '1px solid var(--border)' }}>
+        <h3 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700 }}>Notifications</h3>
+        {items.length > 0 && (
+          <button className="text-xs hover-underline" onClick={onClearAll} style={{ color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer' }}>
+            Mark all as read
+          </button>
+        )}
+      </div>
+      <div style={{ maxHeight: '360px', overflowY: 'auto', background: 'var(--card-bg)' }}>
+        {items.length === 0 ? (
+          <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+            <Bell size={24} style={{ margin: '0 auto 0.5rem', opacity: 0.5 }} />
+            <div className="text-sm">Empty</div>
+          </div>
+        ) : (
+          items.map((item, i) => (
+            <div key={i} onClick={() => onItemClick(item)} style={{ padding: '0.85rem 1.25rem', borderBottom: '1px solid var(--border-light)', cursor: 'pointer', transition: 'background 0.2s', ...item.read ? { opacity: 0.6 } : { background: 'var(--card-hover-bg)' } }}>
+              <div className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>{item.action || 'Notification'}</div>
+              <div className="text-xs text-muted">{item.details || 'System activity'}</div>
+              <div className="text-xs text-muted mt-1" style={{ fontSize: '0.65rem' }}>{new Date(item.created_at).toLocaleString()}</div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
+
 
 // ===================== APP SHELL (persistent — sidebar state survives navigation) =====================
 const AppShell = () => {
@@ -112,6 +144,44 @@ const AppShell = () => {
   const dashboard = useDashboard();
   const { isAuthenticated, user, signOut, refresh } = dashboard;
   const navigate = useNavigate();
+
+  const [showNotif, setShowNotif] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+  
+  const [clearedNotifIds, setClearedNotifIds] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('cleared_notif_ids') || '[]'); } catch { return []; }
+  });
+
+  const allNotifications = dashboard.data?.recentActivity || [];
+  const activeNotifications = allNotifications.filter((item: any) => {
+    const id = item.id || item.created_at;
+    return !clearedNotifIds.includes(id);
+  });
+
+  const handleClearAllNotifs = () => {
+    const allIds = allNotifications.map((item: any) => item.id || item.created_at).filter(Boolean);
+    const updated = Array.from(new Set([...clearedNotifIds, ...allIds]));
+    setClearedNotifIds(updated);
+    localStorage.setItem('cleared_notif_ids', JSON.stringify(updated));
+    addToast('All notifications marked as read', 'info');
+  };
+
+  const handleDismissNotif = (item: any) => {
+    const id = item.id || item.created_at;
+    if (id) {
+      const updated = [...clearedNotifIds, id];
+      setClearedNotifIds(updated);
+      localStorage.setItem('cleared_notif_ids', JSON.stringify(updated));
+    }
+  };
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setShowNotif(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   // Theme mode state (persisted in localStorage)
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -167,6 +237,33 @@ const AppShell = () => {
             <Link to="/upload" className="navbar-link">
               <FileText size={14} /> Resumes
             </Link>
+            <div ref={notifRef} style={{ position: 'relative' }}>
+              <button
+                type="button"
+                className="navbar-link"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowNotif(v => !v);
+                }}
+                title="Notifications"
+                style={{ position: 'relative', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', color: 'inherit', font: 'inherit' }}
+              >
+                <Bell size={14} />
+                <span>Notifications</span>
+                {activeNotifications.length > 0 && (
+                  <span style={{ position: 'absolute', top: '4px', right: '-4px', width: '8px', height: '8px', background: 'var(--red)', borderRadius: '50%' }}></span>
+                )}
+              </button>
+              {showNotif && (
+                <NotifPanel
+                  onClose={() => setShowNotif(false)}
+                  items={activeNotifications}
+                  onClearAll={handleClearAllNotifs}
+                  onItemClick={handleDismissNotif}
+                />
+              )}
+            </div>
             <Link to="/settings" className="navbar-link">
               <HelpCircle size={14} /> Help Centre
             </Link>
