@@ -43,7 +43,7 @@ export const RankingService = {
         .eq('recruiter_id', recruiterId)
         .order('title', { ascending: true });
 
-      const availableJobs: Array<{ id: string; title: string }> = (jobsData || []).map(j => ({
+      const availableJobs: Array<{ id: string; title: string }> = (jobsData || []).map((j: any) => ({
         id: j.id,
         title: j.title
       }));
@@ -100,8 +100,8 @@ export const RankingService = {
             .ilike('title', `%${trimmedSearch}%`)
         ]);
 
-        const candIds = (matchingCands || []).map(c => c.id);
-        const jobIds = (matchingJobs || []).map(j => j.id);
+        const candIds = (matchingCands || []).map((c: any) => c.id);
+        const jobIds = (matchingJobs || []).map((j: any) => j.id);
 
         let matchingResumeIds: string[] = [];
         if (candIds.length > 0) {
@@ -110,7 +110,7 @@ export const RankingService = {
             .select('id')
             .eq('recruiter_id', recruiterId)
             .in('candidate_id', candIds);
-          matchingResumeIds = (matchingResumes || []).map(r => r.id);
+          matchingResumeIds = (matchingResumes || []).map((r: any) => r.id);
         }
 
         const orFilters: string[] = [];
