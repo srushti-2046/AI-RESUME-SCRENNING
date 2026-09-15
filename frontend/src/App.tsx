@@ -349,8 +349,12 @@ const AppShell = () => {
               <div className="sidebar-section-title">Analysis</div>
               <NavItem to="/analysis" icon={BarChart2} label="Analysis Result" />
               <NavItem to="/ranking" icon={Award} label="Ranking" />
-              <NavItem to="/ats-check" icon={ShieldCheck} label="ATS Check" />
-              <NavItem to="/duplicate" icon={Copy} label="Duplicate Detection" />
+              {isAuthenticated && (
+                <>
+                  <NavItem to="/ats-check" icon={ShieldCheck} label="ATS Check" />
+                  <NavItem to="/duplicate" icon={Copy} label="Duplicate Detection" />
+                </>
+              )}
 
               <div className="sidebar-section-title">Assessment</div>
               <NavItem to="/assessment" icon={ClipboardCheck} label="Assessment" />
