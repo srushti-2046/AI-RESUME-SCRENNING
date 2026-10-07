@@ -12,11 +12,8 @@ export const CandidateCard: React.FC<CandidateCardProps> = ({ candidate, onSumma
   const navigate = useNavigate();
 
   const handleView = () => {
-    if (candidate.resumeId && candidate.jobId) {
-      navigate(`/analysis?resumeId=${candidate.resumeId}&jobId=${candidate.jobId}`);
-    } else {
-      navigate('/analysis');
-    }
+    const targetId = candidate.resumeId || candidate.id;
+    navigate(`/analysis?resumeId=${targetId}&candidateId=${candidate.id}${candidate.jobId ? `&jobId=${candidate.jobId}` : ''}`);
   };
 
   const isShortlisted = candidate.status === 'shortlisted';

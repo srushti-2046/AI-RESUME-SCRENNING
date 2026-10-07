@@ -11,7 +11,8 @@ export const RankingRow: React.FC<RankingRowProps> = ({ candidate }) => {
   const navigate = useNavigate();
 
   const handleView = () => {
-    navigate(`/analysis?resumeId=${candidate.resumeId}&jobId=${candidate.jobId}`);
+    const targetId = candidate.resumeId || candidate.candidateId;
+    navigate(`/analysis?resumeId=${targetId}&candidateId=${candidate.candidateId}${candidate.jobId ? `&jobId=${candidate.jobId}` : ''}`);
   };
 
   // Render rank medal or numeric badge

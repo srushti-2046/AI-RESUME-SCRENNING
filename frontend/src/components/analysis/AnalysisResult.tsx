@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { AnalysisService } from '../../services/analysis.service';
+import { CandidateService } from '../../services/candidate.service';
 import type { FullAnalysisResultPayload } from '../../types/resume.types';
+import type { CandidateListItem } from '../../types/candidate.types';
 import { CandidateHeader } from './CandidateHeader';
 import { ScoreBreakdown } from './ScoreBreakdown';
 import { AIRecommendation } from './AIRecommendation';
@@ -10,7 +12,7 @@ import { AnalysisSummary } from './AnalysisSummary';
 import { Suggestions } from './Suggestions';
 import { CompanyFit } from './CompanyFit';
 import { AIScreeningResult } from './AIScreeningResult';
-import { ArrowLeft, Loader2, RefreshCw, FileSearch, Upload, Users } from 'lucide-react';
+import { ArrowLeft, Loader2, RefreshCw, FileSearch, Upload, Users, UserCheck } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 interface AnalysisResultProps {
@@ -18,36 +20,65 @@ interface AnalysisResultProps {
 }
 
 export const AnalysisResult: React.FC<AnalysisResultProps> = ({ onNavigateBack }) => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<FullAnalysisResultPayload | null>(null);
+  const [candidatesList, setCandidatesList] = useState<CandidateListItem[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   const urlResumeId = searchParams.get('resumeId');
   const urlJobId = searchParams.get('jobId');
+  const urlCandidateId = searchParams.get('candidateId');
 
   useEffect(() => {
     loadAnalysis();
-  }, [urlResumeId, urlJobId]);
+  }, [urlResumeId, urlJobId, urlCandidateId]);
 
   const loadAnalysis = async () => {
     setLoading(true);
     try {
-      // If no candidate is selected in URL, do NOT load any arbitrary or cached resume
-      if (!urlResumeId) {
-        setData(null);
-        setLoading(false);
-        return;
+      // 1. Fetch available platform candidates so recruiter can browse or auto-select
+      const { candidates } = await CandidateService.getCandidates({ pageSize: 50 });
+      setCandidatesList(candidates);
+
+      let targetResumeId = urlResumeId;
+      let targetJobId = urlJobId || '';
+      let targetCandId = urlCandidateId || '';
+
+      // If no candidate specified in URL, auto-select the first candidate from the list
+      if (!targetResumeId && !targetCandId) {
+        if (candidates.length > 0) {
+          const first = candidates[0];
+          targetResumeId = first.resumeId || first.id;
+          targetJobId = first.jobId || '';
+          targetCandId = first.id;
+          setCurrentIndex(0);
+        } else {
+          setData(null);
+          setLoading(false);
+          return;
+        }
+      } else {
+        // Find index of current candidate in list
+        const idx = candidates.findIndex(c => 
+          (targetCandId && c.id === targetCandId) ||
+          (targetResumeId && (c.resumeId === targetResumeId || c.id === targetResumeId))
+        );
+        if (idx !== -1) {
+          setCurrentIndex(idx);
+          if (!targetJobId && candidates[idx].jobId) {
+            targetJobId = candidates[idx].jobId!;
+          }
+        }
       }
 
-      let targetJobId = urlJobId || '';
-
-      // If jobId was not provided in URL, resolve it from the candidate's analysis record
-      if (!targetJobId) {
+      // If targetJobId is still empty, resolve from candidate analysis
+      if (targetResumeId && !targetJobId) {
         const { data: jobMatch } = await supabase
           .from('resume_job_analysis')
           .select('job_id')
-          .eq('resume_id', urlResumeId)
+          .eq('resume_id', targetResumeId)
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -57,16 +88,23 @@ export const AnalysisResult: React.FC<AnalysisResultProps> = ({ onNavigateBack }
         }
       }
 
-      if (urlResumeId && targetJobId) {
-        const result = await AnalysisService.getSharedAnalysisResult(urlResumeId, targetJobId);
+      const lookupId = targetResumeId || targetCandId;
+      if (lookupId) {
+        const result = await AnalysisService.getAnalysisResult(lookupId, targetJobId);
         if (result) {
           setData(result);
           setLoading(false);
           return;
         }
+
+        const sharedResult = await AnalysisService.getSharedAnalysisResult(lookupId, targetJobId);
+        if (sharedResult) {
+          setData(sharedResult);
+          setLoading(false);
+          return;
+        }
       }
 
-      // If candidate was not found in database, do NOT show any mock data
       setData(null);
     } catch (err) {
       console.error('Error loading analysis result:', err);
@@ -74,6 +112,16 @@ export const AnalysisResult: React.FC<AnalysisResultProps> = ({ onNavigateBack }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSelectCandidate = (candidate: CandidateListItem, index: number) => {
+    setCurrentIndex(index);
+    const targetId = candidate.resumeId || candidate.id;
+    setSearchParams({
+      resumeId: targetId,
+      candidateId: candidate.id,
+      ...(candidate.jobId ? { jobId: candidate.jobId } : {})
+    });
   };
 
   if (loading) {
@@ -123,27 +171,27 @@ export const AnalysisResult: React.FC<AnalysisResultProps> = ({ onNavigateBack }
 
           <div>
             <h2 style={{ fontSize: '1.3rem', fontWeight: 700, margin: '0 0 0.5rem 0', color: 'var(--text-primary)' }}>
-              No Candidate Selected for Analysis
+              No Candidates Available for Analysis
             </h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.55, margin: 0, maxWidth: 480 }}>
-              There is currently no candidate analysis to display. Please select a candidate from your Candidates list or upload a resume to view comprehensive AI matching scores, skill gaps, and evaluation reports.
+              There are currently no candidate resumes to display. Please upload a resume to view comprehensive AI matching scores, skill gaps, and evaluation reports.
             </p>
           </div>
 
           <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.75rem', flexWrap: 'wrap', justifyContent: 'center' }}>
             <button
-              onClick={() => navigate('/candidates')}
+              onClick={() => navigate('/upload')}
               className="btn btn-primary btn-sm"
               style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0.55rem 1.1rem' }}
             >
-              <Users size={15} /> Select from Candidates
+              <Upload size={15} /> Upload &amp; Screen Resume
             </button>
             <button
-              onClick={() => navigate('/upload')}
+              onClick={() => navigate('/candidates')}
               className="btn btn-secondary btn-sm"
               style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0.55rem 1.1rem' }}
             >
-              <Upload size={15} /> Upload &amp; Screen Resume
+              <Users size={15} /> View Candidates
             </button>
           </div>
         </div>
@@ -153,33 +201,66 @@ export const AnalysisResult: React.FC<AnalysisResultProps> = ({ onNavigateBack }
 
   return (
     <div className="analysis-page-wrapper">
-      {/* Top Bar: Back Button & Actions */}
-      <div className="analysis-top-nav">
-        {urlResumeId ? (
-          <button
-            onClick={() => navigate(-1)}
-            className="btn btn-secondary btn-sm"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-          >
-            <ArrowLeft size={14} /> Back
-          </button>
-        ) : onNavigateBack ? (
-          <button
-            onClick={onNavigateBack}
-            className="btn btn-secondary btn-sm"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-          >
-            <ArrowLeft size={14} /> Back to Upload Resumes
-          </button>
-        ) : (
-          <button
-            onClick={() => navigate('/candidates')}
-            className="btn btn-secondary btn-sm"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-          >
-            <ArrowLeft size={14} /> Back
-          </button>
-        )}
+      {/* Top Bar: Back Button, Candidate Selector & Actions */}
+      <div className="analysis-top-nav" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {urlResumeId || urlCandidateId ? (
+            <button
+              onClick={() => navigate('/candidates')}
+              className="btn btn-secondary btn-sm"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <ArrowLeft size={14} /> Candidates
+            </button>
+          ) : onNavigateBack ? (
+            <button
+              onClick={onNavigateBack}
+              className="btn btn-secondary btn-sm"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <ArrowLeft size={14} /> Back
+            </button>
+          ) : (
+            <button
+              onClick={() => navigate('/candidates')}
+              className="btn btn-secondary btn-sm"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <ArrowLeft size={14} /> Back
+            </button>
+          )}
+
+          {/* Quick Candidate Switcher Dropdown */}
+          {candidatesList.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: '0.5rem' }}>
+              <UserCheck size={14} color="var(--accent)" />
+              <select
+                value={candidatesList[currentIndex]?.id || ''}
+                onChange={(e) => {
+                  const idx = candidatesList.findIndex(c => c.id === e.target.value);
+                  if (idx !== -1) handleSelectCandidate(candidatesList[idx], idx);
+                }}
+                className="form-select"
+                style={{
+                  fontSize: '0.8rem',
+                  padding: '0.35rem 0.65rem',
+                  borderRadius: 8,
+                  border: '1px solid var(--border-color)',
+                  background: 'var(--bg-card)',
+                  color: 'var(--text-primary)',
+                  fontWeight: 600,
+                  maxWidth: 240
+                }}
+              >
+                {candidatesList.map((cand, idx) => (
+                  <option key={cand.id} value={cand.id}>
+                    {idx + 1}. {cand.candidateName} ({cand.score}%) - {cand.status === 'shortlisted' ? 'Shortlisted' : 'Rejected'}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
 
         <button
           onClick={loadAnalysis}
@@ -200,9 +281,13 @@ export const AnalysisResult: React.FC<AnalysisResultProps> = ({ onNavigateBack }
         targetJobTitle={data.job.title}
         fileName={data.resume.fileName}
         screeningDecision={data.screening.decision}
-        candidatesCount={1}
-        currentCandidateIndex={0}
-        onSelectCandidateIndex={() => {}}
+        candidatesCount={candidatesList.length || 1}
+        currentCandidateIndex={currentIndex}
+        onSelectCandidateIndex={(idx) => {
+          if (candidatesList[idx]) {
+            handleSelectCandidate(candidatesList[idx], idx);
+          }
+        }}
       />
 
       {/* 2. Overall Job Match Score & Explainable Factor Breakdown */}

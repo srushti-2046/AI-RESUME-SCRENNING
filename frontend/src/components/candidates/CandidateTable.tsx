@@ -12,11 +12,8 @@ export const CandidateTable: React.FC<CandidateTableProps> = ({ candidates, onSu
   const navigate = useNavigate();
 
   const handleView = (c: CandidateListItem) => {
-    if (c.resumeId && c.jobId) {
-      navigate(`/analysis?resumeId=${c.resumeId}&jobId=${c.jobId}`);
-    } else {
-      navigate('/analysis');
-    }
+    const targetId = c.resumeId || c.id;
+    navigate(`/analysis?resumeId=${targetId}&candidateId=${c.id}${c.jobId ? `&jobId=${c.jobId}` : ''}`);
   };
 
   return (

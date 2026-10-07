@@ -191,6 +191,26 @@ const SKILL_ALIASES: Record<string, string> = {
   'problem solving': 'Problem Solving',
   'team management': 'Team Management',
   'critical thinking': 'Critical Thinking',
+  // IT Service Management & Infrastructure
+  'servicenow': 'ServiceNow',
+  'service now': 'ServiceNow',
+  'itsm': 'ITSM',
+  'cmdb': 'CMDB',
+  'csdm': 'CSDM',
+  'itil': 'ITIL',
+  'active directory': 'Active Directory',
+  'windows': 'Windows',
+  'linux': 'Linux',
+  'dhcp': 'DHCP',
+  'dns': 'DNS',
+  'c': 'C Language',
+  'c language': 'C Language',
+  'clanguage': 'C Language',
+  'c++': 'C++',
+  'ms excel': 'Microsoft Excel',
+  'microsoft excel': 'Microsoft Excel',
+  'user administrator': 'User Administration',
+  'user administration': 'User Administration',
 };
 
 export function normalizeSkill(skill: string): string {
@@ -199,9 +219,41 @@ export function normalizeSkill(skill: string): string {
 }
 
 export function areSkillsMatching(skillA: string, skillB: string): boolean {
-  const a = normalizeSkill(skillA).toLowerCase().replace(/[^a-z0-9]/g, '');
-  const b = normalizeSkill(skillB).toLowerCase().replace(/[^a-z0-9]/g, '');
-  return a === b || a.includes(b) || b.includes(a);
+  if (!skillA || !skillB) return false;
+  const normA = normalizeSkill(skillA).toLowerCase();
+  const normB = normalizeSkill(skillB).toLowerCase();
+  if (normA === normB) return true;
+
+  const a = normA.replace(/[^a-z0-9]/g, '');
+  const b = normB.replace(/[^a-z0-9]/g, '');
+  if (!a || !b) return false;
+  if (a === b) return true;
+
+  // Substring match only for meaningful tokens (>= 3 chars)
+  if (a.length >= 3 && b.length >= 3 && (a.includes(b) || b.includes(a))) {
+    return true;
+  }
+  // Word boundary match
+  const wordsA = normA.split(/[\s_-]+/);
+  const wordsB = normB.split(/[\s_-]+/);
+  return wordsA.some(wa => wa.length >= 3 && wordsB.includes(wa));
+}
+
+// Clean prefixes like "Proficiency in", "Hands-on experience with" from requirement strings
+export function cleanRequirementToSkills(raw: string): string[] {
+  if (!raw || typeof raw !== 'string') return [];
+  let cleaned = raw
+    .replace(/^(proficiency\s+in|hands-on\s+(?:experience|expertise)\s+(?:with|in)?|knowledge\s+of|experience\s+with|familiarity\s+with|expert\s+in|understanding\s+of|ability\s+to|demonstrated\s+skills?\s+in)\s+/i, '')
+    .trim();
+
+  if (/^(minimum|degree|diploma|bachelor|master|year|years|relevant|industry)\b/i.test(cleaned)) {
+    return [];
+  }
+
+  return cleaned
+    .split(/[,;&/]+|\band\b/i)
+    .map(p => p.trim())
+    .filter(p => p.length >= 2 && !/^(the|and|with|for|in|or|of)$/i.test(p));
 }
 
 // ============================================================================
@@ -210,27 +262,43 @@ export function areSkillsMatching(skillA: string, skillB: string): boolean {
 export function extractSkillsFromText(text: string, dynamicRequiredSkills?: string[]): string[] {
   const foundSkills = new Set<string>();
   const lowerText = ' ' + text.toLowerCase().replace(/[^a-z0-9#+./ -]/g, ' ') + ' ';
+  const condensedText = text.toLowerCase().replace(/[^a-z0-9]/g, '');
 
   // 1. Dynamic skills specified by recruiter for the specific job
   if (dynamicRequiredSkills && dynamicRequiredSkills.length > 0) {
     for (const rawReq of dynamicRequiredSkills) {
-      const cleanReq = rawReq.trim().toLowerCase();
-      if (!cleanReq || cleanReq.length < 2) continue;
-      const escaped = cleanReq.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const regex = new RegExp(`(?:\\b|[^a-zA-Z0-9])${escaped}(?:\\b|[^a-zA-Z0-9])`, 'i');
-      if (regex.test(lowerText) || lowerText.includes(cleanReq)) {
-        foundSkills.add(normalizeSkill(rawReq));
+      const parsedItems = cleanRequirementToSkills(rawReq);
+      const candidatesToTest = parsedItems.length > 0 ? parsedItems : [rawReq];
+
+      for (const item of candidatesToTest) {
+        const cleanReq = item.trim().toLowerCase();
+        if (!cleanReq || cleanReq.length < 2) continue;
+        const escaped = cleanReq.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(?:\\b|[^a-zA-Z0-9])${escaped}(?:\\b|[^a-zA-Z0-9])`, 'i');
+        const condensedReq = cleanReq.replace(/[^a-z0-9]/g, '');
+
+        if (
+          regex.test(lowerText) ||
+          lowerText.includes(cleanReq) ||
+          (condensedReq.length >= 3 && condensedText.includes(condensedReq))
+        ) {
+          foundSkills.add(normalizeSkill(item));
+        }
       }
     }
   }
 
   // 2. Universal cross-industry curated skills
   const universalSkills = [
-    // Tech
+    // Tech & Core Dev
     'Python', 'Machine Learning', 'Deep Learning', 'NLP', 'SQL', 'PostgreSQL', 'MySQL', 'MongoDB',
     'Data Analysis', 'Pandas', 'NumPy', 'Scikit-Learn', 'TensorFlow', 'PyTorch',
     'AWS', 'Docker', 'Kubernetes', 'GCP', 'Azure', 'Git', 'CI/CD',
     'JavaScript', 'TypeScript', 'React', 'Node.js', 'Express', 'HTML', 'CSS', 'Tailwind',
+    'C Language', 'C++', 'Java', 'PHP', 'Linux', 'Windows',
+    // IT Infrastructure & Service Management
+    'ServiceNow', 'ITSM', 'CMDB', 'CSDM', 'ITIL', 'Active Directory', 'Networking', 'DHCP', 'DNS',
+    'User Administration', 'Help Desk', 'Technical Support',
     // Marketing & Sales
     'SEO', 'SEM', 'Google Ads', 'Meta Ads', 'Content Marketing', 'Copywriting', 'Social Media',
     'Email Marketing', 'Google Analytics', 'Brand Strategy', 'Lead Generation', 'Salesforce', 'HubSpot',
@@ -238,7 +306,7 @@ export function extractSkillsFromText(text: string, dynamicRequiredSkills?: stri
     // Finance & Accounting
     'Accounting', 'Bookkeeping', 'Taxation', 'GST', 'TDS', 'Tally', 'QuickBooks', 'SAP',
     'Financial Modeling', 'Financial Analysis', 'Auditing', 'Balance Sheet', 'Payroll',
-    'Budgeting', 'Advanced Excel', 'VLOOKUP', 'Investment Banking',
+    'Budgeting', 'Advanced Excel', 'Microsoft Excel', 'VLOOKUP', 'Investment Banking',
     // HR & Management
     'Human Resources', 'Talent Acquisition', 'Recruitment', 'Candidate Sourcing', 'Interviewing',
     'Onboarding', 'Employee Relations', 'HR Policies', 'Workday', 'Performance Management',
@@ -256,7 +324,12 @@ export function extractSkillsFromText(text: string, dynamicRequiredSkills?: stri
   for (const skill of universalSkills) {
     const escaped = skill.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex = new RegExp(`(?:\\b|[^a-zA-Z0-9])${escaped}(?:\\b|[^a-zA-Z0-9])`, 'i');
-    if (regex.test(lowerText) || lowerText.includes(skill.toLowerCase())) {
+    const condensedSkill = skill.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (
+      regex.test(lowerText) ||
+      lowerText.includes(skill.toLowerCase()) ||
+      (condensedSkill.length >= 3 && condensedText.includes(condensedSkill))
+    ) {
       foundSkills.add(normalizeSkill(skill));
     }
   }
@@ -397,11 +470,13 @@ export function parseJobRequirements(
 
   const reqSkills = new Set<string>();
 
-  // Include explicit skills provided by recruiter (split commas if present)
+  // Include explicit skills provided by recruiter (clean prefixes and split lists)
   if (candidateExplicitSkills && candidateExplicitSkills.length > 0) {
     candidateExplicitSkills.forEach(s => {
       if (typeof s === 'string') {
-        s.split(/[,;\n]+/).map(p => p.trim()).filter(Boolean).forEach(clean => {
+        const cleanedItems = cleanRequirementToSkills(s);
+        const toAdd = cleanedItems.length > 0 ? cleanedItems : s.split(/[,;\n]+/).map(p => p.trim()).filter(Boolean);
+        toAdd.forEach(clean => {
           reqSkills.add(normalizeSkill(clean));
         });
       }

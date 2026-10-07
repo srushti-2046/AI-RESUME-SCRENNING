@@ -93,6 +93,32 @@ async function decompressPdfStream(chunk: Uint8Array): Promise<string> {
   return '';
 }
 
+function parseTjTokens(tjContent: string): string {
+  const tokenRegex = /\(([^)]*)\)|(-?\d+(?:\.\d+)?)/g;
+  let text = '';
+  let match: RegExpExecArray | null;
+  while ((match = tokenRegex.exec(tjContent)) !== null) {
+    if (match[1] !== undefined) {
+      text += match[1].replace(/\\([()\\])/g, '$1');
+    } else if (match[2] !== undefined) {
+      const num = parseFloat(match[2]);
+      if (num <= -180) {
+        text += ' ';
+      }
+    }
+  }
+  return text;
+}
+
+export function reconstructSpacedWords(text: string): string {
+  if (!text) return '';
+  // Collapse single-letter runs separated by space: "s a n i k a" -> "sanika", "p y t h o n" -> "python", "I T S M" -> "ITSM"
+  let cleaned = text.replace(/(?:(?<=\b|\s|^)[a-zA-Z]\s+){2,}[a-zA-Z](?=\b|\s|$)/g, (match) => {
+    return match.replace(/\s+/g, '');
+  });
+  return cleaned.replace(/\s+/g, ' ').trim();
+}
+
 /**
  * Extracts plain text from raw PDF and decompressed PDF stream objects
  */
@@ -130,14 +156,13 @@ export async function extractTextFromPdf(buffer: ArrayBuffer): Promise<string> {
       }
     }
 
-    const arrayTjMatches = uncompressed.match(/\[([^\]]+)\]\s*TJ/g);
+    const arrayTjMatches = uncompressed.match(/\[([\s\S]*?)\]\s*TJ/g);
     if (arrayTjMatches) {
       for (const m of arrayTjMatches) {
-        const innerMatches = m.match(/\(([^)]+)\)/g);
-        if (innerMatches) {
-          for (const item of innerMatches) {
-            textPieces.push(item.slice(1, -1).replace(/\\([()\\])/g, '$1'));
-          }
+        const innerContent = m.slice(1, m.lastIndexOf(']'));
+        const parsedTj = parseTjTokens(innerContent);
+        if (parsedTj.trim()) {
+          textPieces.push(parsedTj);
         }
       }
     }
@@ -155,7 +180,8 @@ export async function extractTextFromPdf(buffer: ArrayBuffer): Promise<string> {
   }
 
   // Combine and clean extracted text pieces
-  const combined = textPieces.join(' ').replace(/\\r|\\n/g, ' ').replace(/\s+/g, ' ').trim();
+  let combined = textPieces.join(' ').replace(/\\r|\\n/g, ' ').replace(/\s+/g, ' ').trim();
+  combined = reconstructSpacedWords(combined);
   if (combined.length > 30) {
     return combined;
   }
@@ -164,10 +190,10 @@ export async function extractTextFromPdf(buffer: ArrayBuffer): Promise<string> {
   const readable = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
   const words = readable.match(/[A-Za-z0-9@.,\-+/#:]{3,}/g);
   const filtered = words
-    ? words.filter(w => !w.startsWith('/') && !w.includes('obj') && !w.includes('endobj') && !w.includes('stream'))
+    ? words.filter(w => !w.startsWith('/') && !w.includes('obj') && !w.includes('endobj') && !w.includes('stream') && !w.includes('<<') && !w.includes('>>'))
     : [];
 
-  return filtered.join(' ').trim();
+  return reconstructSpacedWords(filtered.join(' ').trim());
 }
 
 /**
