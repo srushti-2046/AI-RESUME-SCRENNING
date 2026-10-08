@@ -209,10 +209,6 @@ export const CandidateService = {
    */
   async getCandidateSummary(candidateId: string, resumeId?: string | null, jobId?: string | null): Promise<CandidateSummaryData | null> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        return null;
-      }
       // 1. Fetch Candidate
       const { data: candidate, error: candErr } = await supabase
         .from('candidates')

@@ -21,6 +21,7 @@ export interface CandidateListItem {
   email?: string;
   phone?: string;
   education?: string;
+  skills?: string[];
 }
 
 export interface CandidateCounts {
@@ -60,6 +61,9 @@ export interface CandidateSummaryData {
   matchingSkills: string[];
   missingSkills: string[];
   aiSummary: string;
+  analysisSummary?: string;
+  email?: string;
+  phone?: string;
   whyExplanation: string;
   resumeId?: string | null;
   jobId?: string | null;

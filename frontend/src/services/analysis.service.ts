@@ -147,7 +147,7 @@ export const AnalysisService = {
       job.title,
       job.description || '',
       requirementsData && requirementsData.length > 0
-        ? requirementsData.map((r: any) => r.requirement_text)
+        ? requirementsData.filter((r: any) => r.requirement_type === 'skill' || !r.requirement_type).map((r: any) => r.requirement_text)
         : job.required_skills || []
     );
 
@@ -498,10 +498,10 @@ export const AnalysisService = {
         return cached;
       }
 
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: authData } = await supabase.auth.getUser();
+      const user = authData?.user || null;
       if (!user) {
-        logger.warn('AnalysisService', 'getAnalysisResult: User not authenticated');
-        return null;
+        logger.debug('AnalysisService', 'getAnalysisResult: Proceeding with public/viewer read');
       }
       // 1. Fetch Resume with candidate relation (flexible lookup by resumeId or candidateId)
       let resume: any = null;
@@ -617,6 +617,19 @@ export const AnalysisService = {
         .eq('resume_id', resume.id)
         .eq('job_id', job.id)
         .maybeSingle();
+
+      if (!jobAnalysis && resume.id) {
+        const { data: latestAnalysis } = await supabase
+          .from('resume_job_analysis')
+          .select('*')
+          .eq('resume_id', resume.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (latestAnalysis) {
+          jobAnalysis = latestAnalysis;
+        }
+      }
 
       // If missing, compute on the fly dynamically!
       if (!jobAnalysis) {

@@ -40,16 +40,34 @@ export const AnalysisResult: React.FC<AnalysisResultProps> = ({ onNavigateBack }
     try {
       // 1. Fetch available platform candidates so recruiter can browse or auto-select
       const { candidates } = await CandidateService.getCandidates({ pageSize: 50 });
-      setCandidatesList(candidates);
+      // Sort candidates list so highest scores appear first
+      const sortedCandidates = [...candidates].sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0));
+      setCandidatesList(sortedCandidates);
 
       let targetResumeId = urlResumeId;
       let targetJobId = urlJobId || '';
       let targetCandId = urlCandidateId || '';
 
-      // If no candidate specified in URL, auto-select the first candidate from the list
+      // Check sessionStorage for latest batch analysis if coming from upload
+      const cachedBatchStr = sessionStorage.getItem('latest_analysis_result');
+      let cachedBatch: any = null;
+      if (cachedBatchStr) {
+        try {
+          cachedBatch = JSON.parse(cachedBatchStr);
+        } catch {
+          // ignore
+        }
+      }
+
+      // If no candidate specified in URL, auto-select first from sorted list or session batch
       if (!targetResumeId && !targetCandId) {
-        if (candidates.length > 0) {
-          const first = candidates[0];
+        if (cachedBatch?.results && cachedBatch.results.length > 0) {
+          const firstBatch = cachedBatch.results[0];
+          targetResumeId = firstBatch.resumeId;
+          targetCandId = firstBatch.candidateId || '';
+          targetJobId = cachedBatch.jobId || targetJobId;
+        } else if (sortedCandidates.length > 0) {
+          const first = sortedCandidates[0];
           targetResumeId = first.resumeId || first.id;
           targetJobId = first.jobId || '';
           targetCandId = first.id;
@@ -60,15 +78,15 @@ export const AnalysisResult: React.FC<AnalysisResultProps> = ({ onNavigateBack }
           return;
         }
       } else {
-        // Find index of current candidate in list
-        const idx = candidates.findIndex(c => 
+        // Find index of current candidate in sorted list
+        const idx = sortedCandidates.findIndex(c => 
           (targetCandId && c.id === targetCandId) ||
           (targetResumeId && (c.resumeId === targetResumeId || c.id === targetResumeId))
         );
         if (idx !== -1) {
           setCurrentIndex(idx);
-          if (!targetJobId && candidates[idx].jobId) {
-            targetJobId = candidates[idx].jobId!;
+          if (!targetJobId && sortedCandidates[idx].jobId) {
+            targetJobId = sortedCandidates[idx].jobId!;
           }
         }
       }
@@ -102,6 +120,23 @@ export const AnalysisResult: React.FC<AnalysisResultProps> = ({ onNavigateBack }
           setData(sharedResult);
           setLoading(false);
           return;
+        }
+
+        // Direct candidate synthesis fallback
+        const { data: candFallback } = await supabase
+          .from('candidates')
+          .select('*, jobs(id, title, description)')
+          .eq('id', lookupId)
+          .maybeSingle();
+
+        if (candFallback) {
+          const jobObj = Array.isArray(candFallback.jobs) ? candFallback.jobs[0] : candFallback.jobs;
+          const synth = AnalysisService.synthesizeAnalysisFromCandidate(candFallback, jobObj);
+          if (synth) {
+            setData(synth);
+            setLoading(false);
+            return;
+          }
         }
       }
 

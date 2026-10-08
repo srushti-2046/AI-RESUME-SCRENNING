@@ -233,27 +233,38 @@ export function areSkillsMatching(skillA: string, skillB: string): boolean {
   if (a.length >= 3 && b.length >= 3 && (a.includes(b) || b.includes(a))) {
     return true;
   }
-  // Word boundary match
-  const wordsA = normA.split(/[\s_-]+/);
-  const wordsB = normB.split(/[\s_-]+/);
-  return wordsA.some(wa => wa.length >= 3 && wordsB.includes(wa));
+  // Word boundary match excluding stop words
+  const stopWords = new Set(['and', 'the', 'with', 'for', 'in', 'to', 'of', 'skill', 'skills', 'basic', 'advanced', 'role', 'knowledge', 'level']);
+  const wordsA = normA.split(/[\s_-]+/).filter(w => w.length >= 3 && !stopWords.has(w));
+  const wordsB = normB.split(/[\s_-]+/).filter(w => w.length >= 3 && !stopWords.has(w));
+  return wordsA.length > 0 && wordsA.some(wa => wordsB.includes(wa));
+}
+
+export function isNonSkillRequirement(raw: string): boolean {
+  if (!raw || typeof raw !== 'string') return true;
+  const lower = raw.trim().toLowerCase();
+  return (
+    lower.length > 40 ||
+    /^(minimum|degree|diploma|bachelor|master|doctorate|phd|proven|demonstrated portfolio|fine arts|education|experience|tenure|school|college|university|qualification|responsibility|hands-on expertise in|or demonstrated)\b/i.test(lower) ||
+    /\b(\d+\+?\s*(?:years?|yrs?)|relevant\s+industry\s+experience|demonstrated\s+portfolio|bachelor'?s?|master'?s?|degree\s+or\s+diploma)\b/i.test(lower)
+  );
 }
 
 // Clean prefixes like "Proficiency in", "Hands-on experience with" from requirement strings
 export function cleanRequirementToSkills(raw: string): string[] {
-  if (!raw || typeof raw !== 'string') return [];
-  let cleaned = raw
+  if (!raw || typeof raw !== 'string' || isNonSkillRequirement(raw)) return [];
+  const cleaned = raw
     .replace(/^(proficiency\s+in|hands-on\s+(?:experience|expertise)\s+(?:with|in)?|knowledge\s+of|experience\s+with|familiarity\s+with|expert\s+in|understanding\s+of|ability\s+to|demonstrated\s+skills?\s+in)\s+/i, '')
     .trim();
 
-  if (/^(minimum|degree|diploma|bachelor|master|year|years|relevant|industry)\b/i.test(cleaned)) {
+  if (isNonSkillRequirement(cleaned)) {
     return [];
   }
 
   return cleaned
     .split(/[,;&/]+|\band\b/i)
     .map(p => p.trim())
-    .filter(p => p.length >= 2 && !/^(the|and|with|for|in|or|of)$/i.test(p));
+    .filter(p => p.length >= 2 && p.length <= 35 && !/^(the|and|with|for|in|or|of|to|a|an|on|at|by)$/i.test(p) && !isNonSkillRequirement(p));
 }
 
 // ============================================================================
@@ -473,11 +484,18 @@ export function parseJobRequirements(
   // Include explicit skills provided by recruiter (clean prefixes and split lists)
   if (candidateExplicitSkills && candidateExplicitSkills.length > 0) {
     candidateExplicitSkills.forEach(s => {
-      if (typeof s === 'string') {
+      if (typeof s === 'string' && s.trim()) {
+        if (isNonSkillRequirement(s)) {
+          return;
+        }
         const cleanedItems = cleanRequirementToSkills(s);
-        const toAdd = cleanedItems.length > 0 ? cleanedItems : s.split(/[,;\n]+/).map(p => p.trim()).filter(Boolean);
+        const toAdd = cleanedItems.length > 0
+          ? cleanedItems
+          : s.split(/[,;\n]+/).map(p => p.trim()).filter(p => p.length >= 2 && p.length <= 35 && !isNonSkillRequirement(p));
         toAdd.forEach(clean => {
-          reqSkills.add(normalizeSkill(clean));
+          if (!isNonSkillRequirement(clean) && clean.length >= 2 && clean.length <= 35) {
+            reqSkills.add(normalizeSkill(clean));
+          }
         });
       }
     });

@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate,
 import {
   LayoutDashboard, Upload, Users, BarChart2, Award, ClipboardCheck,
   FileText, Settings, HelpCircle, ChevronDown,
-  ArrowLeft, Download, Pencil, Trash2, Plus, Check, X, Search,
+  Download, Pencil, Trash2, Plus, Check, X, Search,
   UserCheck, Bell,
   ShieldCheck, Copy, Mic,
   RefreshCw, Star, Zap, User,
@@ -33,6 +33,9 @@ import { SettingsLayout } from './components/settings/SettingsLayout';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { logger } from './lib/logger';
 import { CandidateService } from './services/candidate.service';
+import { CandidateSummaryPage } from './components/candidates/CandidateSummaryPage';
+import { VirtualInterviewPage } from './components/interview/VirtualInterviewPage';
+import { LiveAssessmentPage } from './components/assessment/LiveAssessmentPage';
 import { SettingsService } from './services/settings.service';
 import type { TeamMember } from './types/settings.types';
 
@@ -531,11 +534,15 @@ const AppShell = () => {
               <div className="sidebar-section-title">Analysis</div>
               <NavItem to="/analysis" icon={BarChart2} label="Analysis Result" />
               <NavItem to="/ranking" icon={Award} label="Ranking" />
+              <NavItem to="/summary" icon={FileText} label="Candidate Summary" />
               <NavItem to="/ats-check" icon={ShieldCheck} label="ATS Check" />
               <NavItem to="/duplicate" icon={Copy} label="Duplicate Detection" />
+              <NavItem to="/reports" icon={BarChart2} label="Reports" />
 
               <div className="sidebar-section-title">Assessment</div>
-              <NavItem to="/assessment" icon={ClipboardCheck} label="Assessment" />
+              <NavItem to="/assessment" icon={ClipboardCheck} label="Assessment Builder" />
+              <NavItem to="/live-assessment" icon={Zap} label="Live Assessment" />
+              <NavItem to="/virtual-interview" icon={Mic} label="Virtual Interview" />
 
               <div className="sidebar-section-title">System</div>
               <NavItem to="/settings" icon={Settings} label="Settings" />
@@ -591,14 +598,14 @@ const AppShell = () => {
                   <Route path="/candidates" element={<Candidates />} />
                   <Route path="/analysis" element={<AnalysisResult onNavigateBack={() => navigate('/upload')} />} />
                   <Route path="/ranking" element={<CandidateRanking />} />
-                  <Route path="/summary" element={<CandidateSummary />} />
+                  <Route path="/summary" element={<CandidateSummaryPage />} />
                   <Route path="/ats-check" element={<ATSCheckPage onShowToast={addToast} />} />
                   <Route path="/ats" element={<Navigate to="/ats-check" replace />} />
                   <Route path="/duplicate" element={<DuplicateDetectionPage onShowToast={addToast} />} />
-                  <Route path="/virtual-interview" element={<VirtualInterview />} />
+                  <Route path="/virtual-interview" element={<VirtualInterviewPage onShowToast={addToast} />} />
                   <Route path="/assessment" element={<AssessmentBuilderPage onShowToast={addToast} />} />
                   <Route path="/assessment/t/:shareToken" element={<CandidateAssessmentPage />} />
-                  <Route path="/live-assessment" element={<LiveAssessment />} />
+                  <Route path="/live-assessment" element={<LiveAssessmentPage onShowToast={addToast} />} />
                   <Route path="/reports" element={<Reports />} />
                   <Route path="/settings" element={<SettingsPage />} />
                   <Route
@@ -1284,8 +1291,8 @@ const UploadResume = () => {
             </div>
 
             <div className="file-list" style={{ maxHeight: 280, overflowY: 'auto' }}>
-              {/* Authenticated Uploaded Resumes */}
-              {isAuthenticated && recruiterResumes.map((r) => (
+              {/* Uploaded / Platform Resumes */}
+              {recruiterResumes.map((r) => (
                 <div key={r.id} className="file-item">
                   <div className="file-item-name" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <FileText size={15} color="var(--accent)" />
@@ -1310,7 +1317,7 @@ const UploadResume = () => {
               ))}
 
               {/* Local Staged Files */}
-              {isAuthenticated && selectedLocalFiles.map((f) => (
+              {selectedLocalFiles.map((f) => (
                 <div key={f.id} className="file-item" style={{ background: 'var(--card-hover-bg)' }}>
                   <div className="file-item-name">
                     <FileText size={15} color="#64748b" />
@@ -1327,13 +1334,23 @@ const UploadResume = () => {
                     ) : (
                       <span className="badge badge-yellow">Pending Upload</span>
                     )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedLocalFiles(prev => prev.filter(x => x.id !== f.id));
+                      }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '2px' }}
+                      title="Remove file"
+                    >
+                      <Trash2 size={13} />
+                    </button>
                   </div>
                 </div>
               ))}
 
               {totalFilesCount === 0 && (
                 <div style={{ textAlign: 'center', padding: '1.5rem', color: '#94a3b8', fontSize: '0.82rem' }}>
-                  {isAuthenticated ? 'No resumes uploaded yet. Drag & drop files above.' : 'Sign in to upload and manage your candidate resumes.'}
+                  No resumes uploaded yet. Drag &amp; drop PDF/DOCX files above to begin.
                 </div>
               )}
             </div>
@@ -1461,74 +1478,19 @@ const Candidates = () => <CandidatesPage />;
 const CandidateRanking = () => <RankingPage />;
 
 // ===================== 6. CANDIDATE SUMMARY =====================
-const CandidateSummary = () => {
-  const navigate = useNavigate();
-
-  return (
-    <>
-      <button className="back-link" onClick={() => navigate('/ranking')}><ArrowLeft size={16} /> Back to Candidates</button>
-      <div className="card" style={{ textAlign: 'center', padding: '3rem 1.5rem' }}>
-        <Users size={48} style={{ margin: '0 auto 1rem', opacity: 0.3, display: 'block', color: 'var(--text-muted)' }} />
-        <h3 style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>No Candidate Selected</h3>
-        <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
-          Select a candidate from the ranking page to view their full profile and resume details.
-        </p>
-        <button className="btn btn-primary" onClick={() => navigate('/ranking')}>Go to Candidate Ranking</button>
-      </div>
-    </>
-  );
-};
+// Fully delegated to production CandidateSummaryPage in src/components/candidates/CandidateSummaryPage.tsx
 
 // ===================== 7. ATS COMPATIBILITY CHECK =====================
 // Fully delegated to production ATSCheckPage component in src/components/ats/ATSCheckPage.tsx
 
-
 // ===================== 8. DUPLICATE DETECTION =====================
 // Fully delegated to production DuplicateDetectionPage component in src/components/duplicate/DuplicateDetectionPage.tsx
 
-
 // ===================== 9. VIRTUAL INTERVIEW =====================
-const VirtualInterview = () => {
-  const navigate = useNavigate();
-
-  return (
-    <>
-      <div className="page-header">
-        <h1 className="page-title">Virtual Interview</h1>
-        <p className="page-subtitle">AI-powered virtual interviews for screened candidates.</p>
-      </div>
-      <div className="card" style={{ textAlign: 'center', padding: '3rem 1.5rem' }}>
-        <Mic size={48} style={{ margin: '0 auto 1rem', opacity: 0.3, display: 'block', color: 'var(--text-muted)' }} />
-        <h3 style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>No Interview Session Active</h3>
-        <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
-          Start an AI-powered virtual interview by selecting a shortlisted candidate from the ranking page.
-        </p>
-        <button className="btn btn-primary" onClick={() => navigate('/ranking')}>View Shortlisted Candidates</button>
-      </div>
-    </>
-  );
-};
-
-
+// Fully delegated to production VirtualInterviewPage in src/components/interview/VirtualInterviewPage.tsx
 
 // ===================== 11. LIVE ASSESSMENT =====================
-const LiveAssessment = () => {
-  const navigate = useNavigate();
-
-  return (
-    <>
-      <button className="back-link" onClick={() => navigate('/assessment')}><ArrowLeft size={16} /> Back to Assessments</button>
-      <div className="card" style={{ textAlign: 'center', padding: '3rem 1.5rem' }}>
-        <ClipboardCheck size={48} style={{ margin: '0 auto 1rem', opacity: 0.3, display: 'block', color: 'var(--text-muted)' }} />
-        <h3 style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>No Active Assessment Session</h3>
-        <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
-          Publish an assessment and assign it to candidates to monitor live progress here.
-        </p>
-        <button className="btn btn-primary" onClick={() => navigate('/assessment')}>Go to Assessment Builder</button>
-      </div>
-    </>
-  );
-};
+// Fully delegated to production LiveAssessmentPage in src/components/assessment/LiveAssessmentPage.tsx
 
 // ===================== 12. REPORTS =====================
 const Reports = () => {

@@ -9,15 +9,18 @@ import type {
 
 export const RankingService = {
   /**
-   * Retrieves live AI candidate rankings for all uploaded resumes across the platform.
-   * Derives rank deterministically by match_score DESC, resume_score DESC, and created_at DESC.
+   * Retrieves live candidate rankings ordered strictly by AI match score percentage descending.
+   * Pulls all candidates from the master candidates table joined with jobs and resumes.
+   * Deduplicates identical candidate names (keeping highest score) and calculates exact rank based on percentage.
    */
   async getCandidateRanking(params: RankingParams = {}): Promise<RankingResponse> {
     const {
       page = 1,
       pageSize = 25,
       jobId = 'all',
-      search = ''
+      search = '',
+      sortBy = 'score_desc',
+      statusFilter = 'all'
     } = params;
 
     const defaultResponse: RankingResponse = {
@@ -30,7 +33,7 @@ export const RankingService = {
     };
 
     try {
-      // 1. Fetch available jobs across the platform for filtering
+      // 1. Fetch available jobs for dropdown
       const { data: jobsData } = await supabase
         .from('jobs')
         .select('id, title')
@@ -41,153 +44,9 @@ export const RankingService = {
         title: j.title
       }));
 
-      const trimmedSearch = search.trim();
+      const trimmedSearch = search.trim().toLowerCase();
 
-      // 2. Primary Query: resume_job_analysis joined with jobs, resumes, candidates
-      let query = supabase
-        .from('resume_job_analysis')
-        .select(`
-          id,
-          match_score,
-          resume_score,
-          match_band,
-          screening_decision,
-          created_at,
-          job_id,
-          resume_id,
-          jobs (
-            id,
-            title
-          ),
-          resumes (
-            id,
-            file_name,
-            candidate_id,
-            candidates (
-              id,
-              full_name,
-              resume_score,
-              status,
-              current_job_title
-            )
-          )
-        `, { count: 'exact' })
-        .not('match_score', 'is', null);
-
-      if (jobId && jobId !== 'all') {
-        query = query.eq('job_id', jobId);
-      }
-
-      query = query
-        .order('match_score', { ascending: false })
-        .order('resume_score', { ascending: false })
-        .order('created_at', { ascending: false });
-
-      const from = (page - 1) * pageSize;
-      const to = from + pageSize - 1;
-      query = query.range(from, to);
-
-      const { data, count, error } = await query;
-
-      // 3. If resume_job_analysis has records, map and return them
-      if (!error && data && data.length > 0) {
-        const rawRows = [...data];
-
-        // In-page tie-breaking
-        rawRows.sort((a: any, b: any) => {
-          const matchDiff = Number(b.match_score) - Number(a.match_score);
-          if (matchDiff !== 0) return matchDiff;
-
-          const resA = Array.isArray(a.resumes) ? a.resumes[0] : a.resumes;
-          const resB = Array.isArray(b.resumes) ? b.resumes[0] : b.resumes;
-          const candA = Array.isArray(resA?.candidates) ? resA.candidates[0] : resA?.candidates;
-          const candB = Array.isArray(resB?.candidates) ? resB.candidates[0] : resB?.candidates;
-          const resumeScoreA = Number(a.resume_score ?? candA?.resume_score ?? 0);
-          const resumeScoreB = Number(b.resume_score ?? candB?.resume_score ?? 0);
-          return resumeScoreB - resumeScoreA;
-        });
-
-        // Apply client search filtering if provided
-        let filteredRows = rawRows;
-        if (trimmedSearch) {
-          const lower = trimmedSearch.toLowerCase();
-          filteredRows = rawRows.filter((r: any) => {
-            const resumeData = Array.isArray(r.resumes) ? r.resumes[0] : r.resumes;
-            const cand = Array.isArray(resumeData?.candidates) ? resumeData.candidates[0] : resumeData?.candidates;
-            const jobData = Array.isArray(r.jobs) ? r.jobs[0] : r.jobs;
-            return (
-              cand?.full_name?.toLowerCase().includes(lower) ||
-              cand?.current_job_title?.toLowerCase().includes(lower) ||
-              jobData?.title?.toLowerCase().includes(lower) ||
-              resumeData?.file_name?.toLowerCase().includes(lower)
-            );
-          });
-        }
-
-        const candidates: RankingCandidate[] = filteredRows.map((row: any, index: number) => {
-          const jobData = Array.isArray(row.jobs) ? row.jobs[0] : row.jobs;
-          const resumeData = Array.isArray(row.resumes) ? row.resumes[0] : row.resumes;
-          const candidateData = Array.isArray(resumeData?.candidates)
-            ? resumeData.candidates[0]
-            : resumeData?.candidates;
-
-          const candidateName = candidateData?.full_name || resumeData?.file_name?.replace(/\.[^/.]+$/, '') || 'Candidate';
-          const initials = candidateName
-            .split(' ')
-            .map((n: string) => n[0])
-            .filter(Boolean)
-            .slice(0, 2)
-            .join('')
-            .toUpperCase() || 'CD';
-
-          const matchScore = Math.round(Number(row.match_score) || 0);
-          const resumeScore = Math.round(Number(row.resume_score ?? candidateData?.resume_score) || matchScore);
-          const status: RankingStatus = (matchScore >= 60 || candidateData?.status === 'shortlisted') ? 'shortlisted' : 'rejected';
-
-          let matchBand: RankingMatchBand = 'low_match';
-          let matchBandLabel = 'Low Match';
-          if (matchScore >= 80) {
-            matchBand = 'strong_match';
-            matchBandLabel = 'Strong Match';
-          } else if (matchScore >= 60) {
-            matchBand = 'moderate_match';
-            matchBandLabel = 'Moderate Match';
-          }
-
-          const rank = (page - 1) * pageSize + index + 1;
-
-          return {
-            rank,
-            id: row.id,
-            candidateId: candidateData?.id || '',
-            resumeId: row.resume_id || resumeData?.id || '',
-            jobId: row.job_id || jobData?.id || '',
-            candidateName,
-            initials,
-            role: jobData?.title || candidateData?.current_job_title || 'Software Developer',
-            matchScore,
-            resumeScore,
-            status,
-            matchBand,
-            matchBandLabel,
-            analyzedAt: row.created_at
-          };
-        });
-
-        const totalCount = count || candidates.length;
-        const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
-
-        return {
-          candidates,
-          totalCount,
-          page,
-          pageSize,
-          totalPages,
-          jobs: availableJobs
-        };
-      }
-
-      // 4. Fallback Safeguard: query candidates directly joined with resumes & jobs
+      // 2. Query master candidates table joined with jobs and resumes
       let candQuery = supabase
         .from('candidates')
         .select(`
@@ -205,34 +64,98 @@ export const RankingService = {
           ),
           resumes (
             id,
-            file_name
+            file_name,
+            file_path
           )
-        `, { count: 'exact' });
+        `);
 
       if (jobId && jobId !== 'all') {
         candQuery = candQuery.eq('job_id', jobId);
       }
 
-      if (trimmedSearch) {
-        candQuery = candQuery.or(`full_name.ilike.%${trimmedSearch}%,current_job_title.ilike.%${trimmedSearch}%`);
+      if (statusFilter && statusFilter !== 'all') {
+        candQuery = candQuery.eq('status', statusFilter);
       }
 
-      candQuery = candQuery
-        .order('match_score', { ascending: false })
-        .order('resume_score', { ascending: false })
-        .range(from, to);
+      const { data: candData, error: candError } = await candQuery;
 
-      const { data: candData, count: candCount } = await candQuery;
+      if (candError || !candData) {
+        console.error('Candidate ranking fetch error:', candError);
+        return defaultResponse;
+      }
 
-      const fallbackCandidates: RankingCandidate[] = (candData || []).map((c: any, index: number) => {
-        const matchScore = Math.round(Number(c.match_score) || 0);
-        const resumeScore = Math.round(Number(c.resume_score) || matchScore);
-        const status: RankingStatus = (c.status === 'shortlisted' || matchScore >= 60) ? 'shortlisted' : 'rejected';
+      // 3. Deduplicate multiple uploads of the same candidate, keeping the record with highest match_score
+      const candidateMap = new Map<string, any>();
+      for (const row of candData) {
+        const rawName = (row.full_name || 'Candidate').trim();
+        // Normalized key for deduplication: e.g. "devpaliya" or "shivanikatkamwar"
+        const normKey = rawName.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const currentScore = Number(row.match_score) || 0;
+
+        if (!candidateMap.has(normKey)) {
+          candidateMap.set(normKey, row);
+        } else {
+          const existing = candidateMap.get(normKey);
+          const existingScore = Number(existing.match_score) || 0;
+          if (currentScore > existingScore) {
+            candidateMap.set(normKey, row);
+          }
+        }
+      }
+
+      let allUniqueCandidates = Array.from(candidateMap.values());
+
+      // 4. Apply search filter if provided
+      if (trimmedSearch) {
+        allUniqueCandidates = allUniqueCandidates.filter((c: any) => {
+          const name = (c.full_name || '').toLowerCase();
+          const role = (c.current_job_title || '').toLowerCase();
+          const jobTitle = (c.jobs?.title || '').toLowerCase();
+          return name.includes(trimmedSearch) || role.includes(trimmedSearch) || jobTitle.includes(trimmedSearch);
+        });
+      }
+
+      // 5. Sort candidates strictly based on percentage or selected criteria
+      allUniqueCandidates.sort((a: any, b: any) => {
+        const scoreA = Number(a.match_score) || 0;
+        const scoreB = Number(b.match_score) || 0;
+        const resumeA = Number(a.resume_score) || 0;
+        const resumeB = Number(b.resume_score) || 0;
+
+        if (sortBy === 'score_asc') {
+          if (scoreA !== scoreB) return scoreA - scoreB;
+          return resumeA - resumeB;
+        }
+        if (sortBy === 'name_asc') {
+          return (a.full_name || '').localeCompare(b.full_name || '');
+        }
+        // Default: score_desc (Highest percentage first)
+        if (scoreB !== scoreA) return scoreB - scoreA;
+        if (resumeB !== resumeA) return resumeB - resumeA;
+        return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+      });
+
+      const totalCount = allUniqueCandidates.length;
+      const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+      const startIndex = (page - 1) * pageSize;
+      const pageSlice = allUniqueCandidates.slice(startIndex, startIndex + pageSize);
+
+      // 6. Map to RankingCandidate with exact Rank number based on percentage
+      const candidates: RankingCandidate[] = pageSlice.map((c: any, index: number) => {
+        const rawScore = Number(c.match_score) || 0;
+        const matchScore = Math.round(rawScore * 10) / 10;
+        const resumeScore = Math.round((Number(c.resume_score) || matchScore) * 10) / 10;
+        const isShortlisted = c.status === 'shortlisted' || matchScore >= 60;
+        const status: RankingStatus = isShortlisted ? 'shortlisted' : 'rejected';
+
         const rawResumes = Array.isArray(c.resumes) ? c.resumes : (c.resumes ? [c.resumes] : []);
         const jobData = Array.isArray(c.jobs) ? c.jobs[0] : c.jobs;
 
-        const candidateName = c.full_name || 'Candidate';
-        const initials = candidateName
+        let cleanName = c.full_name || 'Candidate';
+        // Remove trailing file extensions like .pdf
+        cleanName = cleanName.replace(/\.(pdf|docx|doc)$/i, '').replace(/[_-]/g, ' ').trim();
+
+        const initials = cleanName
           .split(' ')
           .map((n: string) => n[0])
           .filter(Boolean)
@@ -250,13 +173,15 @@ export const RankingService = {
           matchBandLabel = 'Moderate Match';
         }
 
+        const rank = startIndex + index + 1;
+
         return {
-          rank: (page - 1) * pageSize + index + 1,
+          rank,
           id: c.id,
           candidateId: c.id,
           resumeId: rawResumes[0]?.id || c.id,
           jobId: c.job_id || jobData?.id || '',
-          candidateName,
+          candidateName: cleanName,
           initials,
           role: jobData?.title || c.current_job_title || 'Software Developer',
           matchScore,
@@ -264,15 +189,12 @@ export const RankingService = {
           status,
           matchBand,
           matchBandLabel,
-          analyzedAt: c.created_at
+          analyzedAt: c.created_at || new Date().toISOString()
         };
       });
 
-      const totalCount = candCount || fallbackCandidates.length;
-      const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
-
       return {
-        candidates: fallbackCandidates,
+        candidates,
         totalCount,
         page,
         pageSize,

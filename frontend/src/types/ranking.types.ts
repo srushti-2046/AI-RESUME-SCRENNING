@@ -24,6 +24,8 @@ export interface RankingParams {
   pageSize?: number;
   jobId?: string;
   search?: string;
+  sortBy?: 'score_desc' | 'score_asc' | 'name_asc';
+  statusFilter?: 'all' | 'shortlisted' | 'rejected';
 }
 
 export interface RankingResponse {

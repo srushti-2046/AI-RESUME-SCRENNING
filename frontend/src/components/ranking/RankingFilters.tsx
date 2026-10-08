@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, X, Briefcase } from 'lucide-react';
+import { Search, X, Briefcase, ArrowUpDown, Filter } from 'lucide-react';
 
 interface RankingFiltersProps {
   search: string;
@@ -7,6 +7,10 @@ interface RankingFiltersProps {
   jobs: Array<{ id: string; title: string }>;
   selectedJobId: string;
   onJobChange: (jobId: string) => void;
+  sortBy: 'score_desc' | 'score_asc' | 'name_asc';
+  onSortChange: (val: 'score_desc' | 'score_asc' | 'name_asc') => void;
+  statusFilter: 'all' | 'shortlisted' | 'rejected';
+  onStatusChange: (val: 'all' | 'shortlisted' | 'rejected') => void;
   totalCount: number;
 }
 
@@ -16,6 +20,10 @@ export const RankingFilters: React.FC<RankingFiltersProps> = ({
   jobs,
   selectedJobId,
   onJobChange,
+  sortBy,
+  onSortChange,
+  statusFilter,
+  onStatusChange,
   totalCount
 }) => {
   return (
@@ -23,47 +31,100 @@ export const RankingFilters: React.FC<RankingFiltersProps> = ({
       className="flex items-center justify-between gap-3 mb-4 flex-wrap"
       style={{
         background: 'var(--card-bg)',
-        padding: '0.75rem 1rem',
+        padding: '0.85rem 1.15rem',
         borderRadius: '12px',
         border: '1.5px solid var(--border)',
         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)'
       }}
     >
-      {/* Left side: Job Selector */}
-      <div className="flex items-center gap-2 flex-wrap">
+      {/* Left side: Job, Status, and Sort Selectors */}
+      <div className="flex items-center gap-3 flex-wrap">
+        {/* Job Filter */}
         <div className="flex items-center gap-1.5 text-xs text-muted" style={{ fontWeight: 600 }}>
           <Briefcase size={14} style={{ color: 'var(--accent)' }} />
-          <span>Filter by Job:</span>
+          <span>Job:</span>
+          <select
+            value={selectedJobId}
+            onChange={(e) => onJobChange(e.target.value)}
+            style={{
+              padding: '0.38rem 0.75rem',
+              borderRadius: '8px',
+              border: '1.5px solid var(--border)',
+              background: 'var(--card-hover-bg)',
+              fontSize: '0.84rem',
+              color: 'var(--text-primary)',
+              fontWeight: 500,
+              cursor: 'pointer',
+              outline: 'none',
+              minWidth: '170px'
+            }}
+          >
+            <option value="all">All Jobs ({totalCount} candidates)</option>
+            {jobs.map((j) => (
+              <option key={j.id} value={j.id}>
+                {j.title}
+              </option>
+            ))}
+          </select>
         </div>
-        <select
-          value={selectedJobId}
-          onChange={(e) => onJobChange(e.target.value)}
-          style={{
-            padding: '0.4rem 0.85rem',
-            borderRadius: '8px',
-            border: '1.5px solid var(--border)',
-            background: 'var(--card-hover-bg)',
-            fontSize: '0.85rem',
-            color: 'var(--text-primary)',
-            fontWeight: 500,
-            cursor: 'pointer',
-            outline: 'none',
-            minWidth: '200px'
-          }}
-        >
-          <option value="all">All Jobs ({totalCount} candidates)</option>
-          {jobs.map((j) => (
-            <option key={j.id} value={j.id}>
-              {j.title}
-            </option>
-          ))}
-        </select>
+
+        {/* Status Filter */}
+        <div className="flex items-center gap-1.5 text-xs text-muted" style={{ fontWeight: 600 }}>
+          <Filter size={14} style={{ color: 'var(--accent)' }} />
+          <span>Status:</span>
+          <select
+            value={statusFilter}
+            onChange={(e) => onStatusChange(e.target.value as any)}
+            style={{
+              padding: '0.38rem 0.75rem',
+              borderRadius: '8px',
+              border: '1.5px solid var(--border)',
+              background: 'var(--card-hover-bg)',
+              fontSize: '0.84rem',
+              color: 'var(--text-primary)',
+              fontWeight: 500,
+              cursor: 'pointer',
+              outline: 'none',
+              minWidth: '130px'
+            }}
+          >
+            <option value="all">All Statuses</option>
+            <option value="shortlisted">Shortlisted (≥60%)</option>
+            <option value="rejected">Rejected (&lt;60%)</option>
+          </select>
+        </div>
+
+        {/* Sort Filter */}
+        <div className="flex items-center gap-1.5 text-xs text-muted" style={{ fontWeight: 600 }}>
+          <ArrowUpDown size={14} style={{ color: 'var(--accent)' }} />
+          <span>Sort By:</span>
+          <select
+            value={sortBy}
+            onChange={(e) => onSortChange(e.target.value as any)}
+            style={{
+              padding: '0.38rem 0.75rem',
+              borderRadius: '8px',
+              border: '1.5px solid var(--border)',
+              background: 'var(--card-hover-bg)',
+              fontSize: '0.84rem',
+              color: 'var(--text-primary)',
+              fontWeight: 600,
+              cursor: 'pointer',
+              outline: 'none',
+              minWidth: '175px'
+            }}
+          >
+            <option value="score_desc">Match % (Highest First)</option>
+            <option value="score_asc">Match % (Lowest First)</option>
+            <option value="name_asc">Candidate Name (A-Z)</option>
+          </select>
+        </div>
       </div>
 
       {/* Right side: Search Box */}
-      <div style={{ position: 'relative', width: '280px' }}>
+      <div style={{ position: 'relative', width: '260px' }}>
         <Search
-          size={15}
+          size={14}
           style={{
             position: 'absolute',
             left: '10px',
@@ -82,7 +143,7 @@ export const RankingFilters: React.FC<RankingFiltersProps> = ({
             padding: '0.42rem 1.8rem 0.42rem 2rem',
             borderRadius: '8px',
             border: '1.5px solid var(--border)',
-            fontSize: '0.85rem',
+            fontSize: '0.84rem',
             color: 'var(--text-primary)',
             outline: 'none',
             background: 'var(--card-hover-bg)',

@@ -6,6 +6,8 @@ export function useRanking() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedJobId, setSelectedJobId] = useState('all');
+  const [sortBy, setSortBy] = useState<'score_desc' | 'score_asc' | 'name_asc'>('score_desc');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'shortlisted' | 'rejected'>('all');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [loading, setLoading] = useState(true);
@@ -39,6 +41,16 @@ export function useRanking() {
     setPage(1);
   }, []);
 
+  const handleSortChange = useCallback((newSort: 'score_desc' | 'score_asc' | 'name_asc') => {
+    setSortBy(newSort);
+    setPage(1);
+  }, []);
+
+  const handleStatusChange = useCallback((newStatus: 'all' | 'shortlisted' | 'rejected') => {
+    setStatusFilter(newStatus);
+    setPage(1);
+  }, []);
+
   const fetchRanking = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -47,7 +59,9 @@ export function useRanking() {
         page,
         pageSize,
         jobId: selectedJobId,
-        search: debouncedSearch
+        search: debouncedSearch,
+        sortBy,
+        statusFilter
       });
       setData(response);
     } catch (err: any) {
@@ -56,7 +70,7 @@ export function useRanking() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, selectedJobId, debouncedSearch]);
+  }, [page, pageSize, selectedJobId, debouncedSearch, sortBy, statusFilter]);
 
   useEffect(() => {
     fetchRanking();
@@ -74,6 +88,10 @@ export function useRanking() {
     setSearch,
     selectedJobId,
     setSelectedJobId: handleJobChange,
+    sortBy,
+    setSortBy: handleSortChange,
+    statusFilter,
+    setStatusFilter: handleStatusChange,
     refresh: fetchRanking
   };
 }

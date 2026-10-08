@@ -14,7 +14,11 @@ export const JobService = {
     jobId?: string;
   }): Promise<{ success: boolean; job?: JobRecord; error?: string }> {
     try {
-      const parsed: ParsedJobData = parseJobRequirements(params.description, params.skills);
+      const parsed: ParsedJobData = parseJobRequirements(
+        params.title || 'Software Engineer',
+        params.description,
+        params.skills
+      );
       const title = params.title || parsed.title || 'Software Engineer';
       const requiredSkills = (params.skills && params.skills.length > 0)
         ? params.skills.map(s => normalizeSkill(s))

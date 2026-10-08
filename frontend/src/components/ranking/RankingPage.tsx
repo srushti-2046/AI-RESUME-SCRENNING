@@ -16,6 +16,10 @@ export const RankingPage: React.FC = () => {
     setSearch,
     selectedJobId,
     setSelectedJobId,
+    sortBy,
+    setSortBy,
+    statusFilter,
+    setStatusFilter,
     refresh
   } = useRanking();
 
@@ -26,11 +30,11 @@ export const RankingPage: React.FC = () => {
 
   return (
     <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
-      {/* Top Header — Clean, exact match to design */}
+      {/* Top Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="page-title">Candidate Ranking</h1>
-          <p className="page-subtitle">All analyzed candidates ranked by AI score.</p>
+          <p className="page-subtitle">All analyzed candidates ranked strictly by AI match score percentage.</p>
         </div>
 
         <button
@@ -58,6 +62,10 @@ export const RankingPage: React.FC = () => {
         jobs={jobs}
         selectedJobId={selectedJobId}
         onJobChange={setSelectedJobId}
+        sortBy={sortBy}
+        onSortChange={setSortBy}
+        statusFilter={statusFilter}
+        onStatusChange={setStatusFilter}
         totalCount={totalCount}
       />
 
@@ -67,7 +75,7 @@ export const RankingPage: React.FC = () => {
           <div style={{ padding: '4rem 1.5rem', textAlign: 'center' }}>
             <Loader2 size={36} className="spin" style={{ margin: '0 auto 1rem', color: 'var(--accent)' }} />
             <div style={{ fontWeight: 700, color: '#1e293b' }}>Loading rankings...</div>
-            <div className="text-xs text-muted mt-1">Sorting candidates by AI match score</div>
+            <div className="text-xs text-muted mt-1">Sorting candidates by AI match percentage</div>
           </div>
         ) : error ? (
           <div style={{ padding: '3rem 1.5rem', textAlign: 'center', color: '#ef4444' }}>
